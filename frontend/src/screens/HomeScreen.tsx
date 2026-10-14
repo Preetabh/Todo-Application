@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 import { api } from '../services/api';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -27,6 +28,7 @@ export const HomeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
+  const { updateInfo, showModal, openUpdateModal } = useAppUpdate();
 
   const [todoStats, setTodoStats] = useState<TodoStats>({
     total: 0,
@@ -245,6 +247,44 @@ export const HomeScreen: React.FC = () => {
             transform: [{ translateY: slideAnim }],
           }}
         >
+          {/* Subtle Floating Update Notice (When available and modal is closed) */}
+          {updateInfo?.hasUpdate && !showModal && (
+            <TouchableOpacity
+              style={[
+                styles.updateNoticeBanner,
+                {
+                  backgroundColor: isDark ? 'rgba(32, 138, 239, 0.16)' : 'rgba(32, 138, 239, 0.08)',
+                  borderColor: isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(32, 138, 239, 0.3)',
+                },
+              ]}
+              onPress={openUpdateModal}
+              activeOpacity={0.85}
+            >
+              <View style={styles.updateNoticeLeft}>
+                <View
+                  style={[
+                    styles.updateNoticeIconWrap,
+                    { backgroundColor: isDark ? 'rgba(32, 138, 239, 0.25)' : '#E0F2FE' },
+                  ]}
+                >
+                  <Ionicons name="sparkles" size={16} color={colors.primary} />
+                </View>
+                <View style={styles.updateNoticeTextCol}>
+                  <Text style={[styles.updateNoticeTitle, { color: colors.textPrimary }]}>
+                    New Release Ready • v{updateInfo.latestVersion}
+                  </Text>
+                  <Text style={[styles.updateNoticeSubtitle, { color: colors.textSecondary }]}>
+                    Tap to view release details & install
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.updateNoticePill, { backgroundColor: colors.primary }]}>
+                <Text style={styles.updateNoticePillText}>Update</Text>
+                <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Animated Hero Banner Card with Brand Logo */}
           <Card style={styles.welcomeBanner}>
             <View style={styles.bannerContent}>
@@ -811,5 +851,52 @@ const styles = StyleSheet.create({
   launchBtn: {
     flex: 1,
     height: 48,
+  },
+  updateNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    marginBottom: Spacing.md,
+  },
+  updateNoticeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  updateNoticeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  },
+  updateNoticeTextCol: {
+    flex: 1,
+  },
+  updateNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  updateNoticeSubtitle: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  updateNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
+  },
+  updateNoticePillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

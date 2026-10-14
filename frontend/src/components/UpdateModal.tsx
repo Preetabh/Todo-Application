@@ -17,7 +17,7 @@ import { UpdateCheckResult } from '../types';
 
 export type UpdatePhase = 'idle' | 'downloading' | 'installing' | 'error';
 
-interface UpdateModalProps {
+export interface UpdateModalProps {
   visible: boolean;
   updateInfo: UpdateCheckResult | null;
   phase: UpdatePhase;
@@ -28,6 +28,7 @@ interface UpdateModalProps {
   onUpdateNow: () => void;
   onCancelDownload?: () => void;
   onDismiss: () => void;
+  onSnooze?: (hours?: number) => void;
   onOpenSettings?: () => void;
   onOpenBrowserFallback?: () => void;
   onRetryInstall?: () => void;
@@ -44,6 +45,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   onUpdateNow,
   onCancelDownload,
   onDismiss,
+  onSnooze,
   onOpenSettings,
   onOpenBrowserFallback,
   onRetryInstall,
@@ -61,6 +63,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleSnooze = () => {
+    if (onSnooze) {
+      onSnooze(24);
+    } else {
+      onDismiss();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -69,7 +79,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       statusBarTranslucent
       onRequestClose={() => {
         if (!isForced && phase !== 'downloading') {
-          onDismiss();
+          handleSnooze();
         }
       }}
     >
@@ -80,7 +90,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           style={styles.backdrop}
           onPress={() => {
             if (!isForced && phase !== 'downloading') {
-              onDismiss();
+              handleSnooze();
             }
           }}
         />
@@ -90,11 +100,25 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           style={[
             styles.cardContainer,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.cardBorder,
+              backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+              borderColor: isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(32, 138, 239, 0.2)',
             },
           ]}
         >
+          {/* Top Close Button for optional updates */}
+          {!isForced && phase !== 'downloading' && (
+            <TouchableOpacity
+              style={[
+                styles.closeButton,
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+              ]}
+              onPress={handleSnooze}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+
           {/* Header Icon & Badges */}
           <View style={styles.headerRow}>
             <View
@@ -106,20 +130,23 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                       ? '#451A1A'
                       : '#FEE2E2'
                     : isDark
-                    ? '#1E293B'
+                    ? 'rgba(32, 138, 239, 0.2)'
                     : '#E0F2FE',
+                  borderColor: isForced ? '#EF4444' : '#208AEF',
                 },
               ]}
             >
               <Ionicons
                 name={
                   phase === 'downloading'
-                    ? 'cloud-download-outline'
+                    ? 'cloud-download'
+                    : phase === 'installing'
+                    ? 'construct'
                     : isForced
                     ? 'alert-circle'
                     : 'sparkles'
                 }
-                size={28}
+                size={30}
                 color={isForced ? colors.danger : colors.primary}
               />
             </View>
@@ -128,15 +155,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               <View style={styles.badgeRow}>
                 <Text style={[styles.title, { color: colors.textPrimary }]}>
                   {phase === 'downloading'
-                    ? 'Downloading Update'
+                    ? 'Downloading APK'
                     : phase === 'installing'
-                    ? 'Installing Update'
+                    ? 'Installer Launched'
                     : isForced
                     ? 'Important Update'
-                    : 'Update Available'}
+                    : 'New Version Ready'}
                 </Text>
 
-                {isForced && (
+                {isForced ? (
                   <View
                     style={[
                       styles.forcedBadge,
@@ -155,11 +182,29 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                       Required
                     </Text>
                   </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.releaseBadge,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(32, 138, 239, 0.2)'
+                          : 'rgba(32, 138, 239, 0.12)',
+                        borderColor: colors.primary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.releaseBadgeText, { color: colors.primary }]}>
+                      v{updateInfo.latestVersion}
+                    </Text>
+                  </View>
                 )}
               </View>
 
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                A newer version is ready for download
+                {phase === 'installing'
+                  ? 'Complete the setup on your Android system prompt'
+                  : 'Upgrade DigentTech to unlock latest features and fixes'}
               </Text>
             </View>
           </View>
@@ -169,14 +214,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             style={[
               styles.versionBox,
               {
-                backgroundColor: colors.cardHover,
-                borderColor: colors.cardBorder,
+                backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                borderColor: isDark ? '#334155' : '#E2E8F0',
               },
             ]}
           >
             <View style={styles.versionCol}>
               <Text style={[styles.versionLabel, { color: colors.textTertiary }]}>
-                Current
+                Installed
               </Text>
               <Text style={[styles.versionValue, { color: colors.textSecondary }]}>
                 v{updateInfo.currentVersion}
@@ -189,7 +234,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
             <View style={styles.versionCol}>
               <Text style={[styles.versionLabel, { color: colors.textTertiary }]}>
-                Latest
+                Available
               </Text>
               <Text
                 style={[
@@ -203,26 +248,54 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </View>
           </View>
 
-          {/* Release Notes / Update Message */}
+          {/* Feature Highlights & Release Notes */}
           <View style={styles.releaseNotesSection}>
             <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
-              What&apos;s New
+              What&apos;s Included in This Release:
             </Text>
             <ScrollView
               style={[
                 styles.notesScrollView,
                 {
-                  backgroundColor: isDark ? '#141E33' : '#F8FAFC',
-                  borderColor: colors.cardBorder,
+                  backgroundColor: isDark ? '#141E33' : '#F1F5F9',
+                  borderColor: isDark ? '#1E293B' : '#E2E8F0',
                 },
               ]}
               contentContainerStyle={styles.notesContent}
               nestedScrollEnabled
             >
-              <Text style={[styles.notesText, { color: colors.textSecondary }]}>
-                {updateInfo.updateMessage ||
-                  'Performance enhancements, security updates, and bug fixes.'}
-              </Text>
+              {/* Feature Highlights Pills */}
+              <View style={styles.highlightItem}>
+                <Ionicons name="key" size={16} color="#3B82F6" style={styles.highlightIcon} />
+                <Text style={[styles.highlightText, { color: colors.textPrimary }]}>
+                  <Text style={styles.highlightBold}>Encrypted Vault: </Text>
+                  AES-256-GCM secure password manager with generator.
+                </Text>
+              </View>
+
+              <View style={styles.highlightItem}>
+                <Ionicons name="color-palette" size={16} color="#8B5CF6" style={styles.highlightIcon} />
+                <Text style={[styles.highlightText, { color: colors.textPrimary }]}>
+                  <Text style={styles.highlightBold}>Adaptive Themes: </Text>
+                  Polished dark & light mode with refined padding.
+                </Text>
+              </View>
+
+              <View style={styles.highlightItem}>
+                <Ionicons name="flash" size={16} color="#EAB308" style={styles.highlightIcon} />
+                <Text style={[styles.highlightText, { color: colors.textPrimary }]}>
+                  <Text style={styles.highlightBold}>Performance: </Text>
+                  Silky smooth animations, compressed assets & fast startup.
+                </Text>
+              </View>
+
+              {updateInfo.updateMessage ? (
+                <View style={styles.customMessageContainer}>
+                  <Text style={[styles.notesText, { color: colors.textSecondary }]}>
+                    {updateInfo.updateMessage}
+                  </Text>
+                </View>
+              ) : null}
             </ScrollView>
           </View>
 
@@ -231,7 +304,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <View style={styles.progressContainer}>
               <View style={styles.progressHeaderRow}>
                 <Text style={[styles.progressLabel, { color: colors.textPrimary }]}>
-                  Downloading APK...
+                  Downloading DigentTech-v{updateInfo.latestVersion}.apk
                 </Text>
                 <Text style={[styles.progressPercent, { color: colors.primary }]}>
                   {percentage}%
@@ -259,7 +332,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               <View style={styles.progressSubtextRow}>
                 <Text style={[styles.progressBytes, { color: colors.textTertiary }]}>
                   {totalBytes > 0
-                    ? `${formatBytes(bytesWritten)} / ${formatBytes(totalBytes)}`
+                    ? `${formatBytes(bytesWritten)} of ${formatBytes(totalBytes)}`
                     : `${formatBytes(bytesWritten)} downloaded`}
                 </Text>
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -285,18 +358,19 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               style={[
                 styles.statusBanner,
                 {
-                  backgroundColor: colors.primarySoft,
+                  backgroundColor: isDark ? 'rgba(32, 138, 239, 0.15)' : '#E0F2FE',
                   borderColor: colors.primary,
                 },
               ]}
             >
-              <ActivityIndicator size="small" color={colors.primary} />
+              <Ionicons name="checkmark-circle" size={26} color={colors.primary} />
               <View style={styles.statusBannerTextCol}>
                 <Text style={[styles.statusBannerTitle, { color: colors.primary }]}>
-                  Opening Android Installer...
+                  Android Package Installer Opened
                 </Text>
                 <Text style={[styles.statusBannerDesc, { color: colors.textSecondary }]}>
-                  Confirm installation when prompted on screen.
+                  1. Tap &apos;Update&apos; on the Android system screen.{'\n'}
+                  2. Once finished, reopen DigentTech from your home screen.
                 </Text>
               </View>
             </View>
@@ -308,7 +382,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               style={[
                 styles.statusBanner,
                 {
-                  backgroundColor: colors.dangerSoft,
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
                   borderColor: colors.danger,
                 },
               ]}
@@ -331,14 +405,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               <View style={styles.actionRow}>
                 {!isForced && (
                   <Button
-                    title="Later"
+                    title="Remind Tomorrow"
                     variant="secondary"
-                    onPress={onDismiss}
+                    icon={<Ionicons name="time-outline" size={17} color={colors.textPrimary} />}
+                    onPress={handleSnooze}
                     style={styles.halfButton}
                   />
                 )}
                 <Button
-                  title={isForced ? 'Update to Continue' : 'Update Now'}
+                  title={isForced ? 'Update Required' : 'Update Now'}
                   variant="primary"
                   icon={
                     <Ionicons name="download-outline" size={18} color="#FFFFFF" />
@@ -352,10 +427,16 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             {phase === 'installing' && (
               <View style={styles.actionRow}>
                 <Button
-                  title="Launch Installer Again"
+                  title="Close"
+                  variant="secondary"
+                  onPress={handleSnooze}
+                  style={styles.halfButton}
+                />
+                <Button
+                  title="Re-open Installer"
                   variant="primary"
                   onPress={onRetryInstall || onUpdateNow}
-                  style={styles.fullButton}
+                  style={styles.halfButton}
                   icon={
                     <Ionicons name="open-outline" size={18} color="#FFFFFF" />
                   }
@@ -405,18 +486,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                         { color: colors.primary },
                       ]}
                     >
-                      Download directly in browser
+                      Download APK directly in browser
                     </Text>
                   </TouchableOpacity>
-                )}
-
-                {!isForced && (
-                  <Button
-                    title="Close"
-                    variant="ghost"
-                    onPress={onDismiss}
-                    style={styles.fullButton}
-                  />
                 )}
               </View>
             )}
@@ -432,7 +504,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
+    padding: Spacing.lg,
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
@@ -440,25 +512,38 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     width: '100%',
-    maxWidth: 420,
-    borderRadius: BorderRadius.xl,
+    maxWidth: 440,
+    borderRadius: 24,
+    borderWidth: 1.5,
     padding: Spacing.xl,
-    borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
-    elevation: 12,
+    elevation: 16,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+    paddingRight: Spacing.xl,
   },
   iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
@@ -469,19 +554,29 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: Spacing.xs,
+    marginBottom: 4,
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  releaseBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  releaseBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   forcedBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.sm,
+    paddingVertical: 2,
+    borderRadius: 8,
     borderWidth: 1,
   },
   forcedBadgeText: {
@@ -491,59 +586,81 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    marginTop: 2,
+    lineHeight: 18,
   },
   versionBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
   },
   versionCol: {
     alignItems: 'center',
   },
-  versionArrowCol: {
-    paddingHorizontal: Spacing.sm,
-  },
   versionLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
+    marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 2,
   },
   versionValue: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
   },
   versionValueHighlight: {
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  versionArrowCol: {
+    paddingHorizontal: Spacing.sm,
   },
   releaseNotesSection: {
     marginBottom: Spacing.md,
   },
   sectionHeading: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: Spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   notesScrollView: {
-    maxHeight: 110,
+    maxHeight: 150,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
   },
   notesContent: {
     padding: Spacing.md,
   },
+  highlightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.xs,
+  },
+  highlightIcon: {
+    marginRight: 8,
+    marginTop: 2,
+  },
+  highlightText: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    flex: 1,
+  },
+  highlightBold: {
+    fontWeight: '700',
+  },
+  customMessageContainer: {
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(150, 150, 150, 0.2)',
+  },
   notesText: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
+    fontStyle: 'italic',
   },
   progressContainer: {
     marginBottom: Spacing.md,
@@ -556,11 +673,13 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
+    flex: 1,
   },
   progressPercent: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
+    marginLeft: Spacing.sm,
   },
   progressTrack: {
     height: 8,
@@ -581,9 +700,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   cancelDownloadBtn: {
-    alignSelf: 'center',
     marginTop: Spacing.sm,
-    paddingVertical: 4,
+    alignItems: 'center',
   },
   cancelDownloadText: {
     fontSize: 13,
@@ -591,23 +709,23 @@ const styles = StyleSheet.create({
   },
   statusBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     marginBottom: Spacing.md,
-    gap: Spacing.sm,
   },
   statusBannerTextCol: {
     flex: 1,
+    marginLeft: Spacing.sm,
   },
   statusBannerTitle: {
     fontSize: 13,
     fontWeight: '700',
+    marginBottom: 2,
   },
   statusBannerDesc: {
     fontSize: 12,
-    marginTop: 2,
     lineHeight: 16,
   },
   buttonStack: {
@@ -615,7 +733,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   halfButton: {
     flex: 1,
@@ -628,14 +746,13 @@ const styles = StyleSheet.create({
   },
   browserFallbackBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
     gap: 6,
-    paddingVertical: 8,
   },
   browserFallbackText: {
     fontSize: 13,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+    fontWeight: '500',
   },
 });
