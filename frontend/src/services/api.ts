@@ -24,13 +24,8 @@ const getDefaultApiUrl = (): string => {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
   }
 
-  // Fallbacks for local testing when EXPO_PUBLIC_API_URL is not set
-  if (Platform.OS === 'android') {
-    // 10.0.2.2 is the special Android Emulator alias for host machine's localhost
-    return 'http://10.0.2.2:5000/api';
-  }
-
-  return 'http://localhost:5000/api';
+  // Fallback to deployed production Render backend API
+  return 'https://todo-application-f0yf.onrender.com/api';
 };
 
 export const API_BASE_URL = getDefaultApiUrl();
