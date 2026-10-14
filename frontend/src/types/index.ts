@@ -134,3 +134,53 @@ export interface PasswordStats {
   favorites: number;
 }
 
+export type DocumentCategory =
+  | 'identity'
+  | 'education'
+  | 'finance'
+  | 'health'
+  | 'vehicle'
+  | 'bills'
+  | 'other';
+
+export type DocumentFileType = 'image' | 'pdf' | 'other';
+
+export interface StoredDocument {
+  id: string;
+  title: string;
+  category: DocumentCategory;
+  documentNumber?: string;
+  fileUri: string;
+  fileName: string;
+  fileType: DocumentFileType;
+  mimeType?: string;
+  fileSizeBytes?: number;
+  notes?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  isFavorite: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentInput {
+  title: string;
+  category: DocumentCategory;
+  documentNumber?: string;
+  sourceUri: string;
+  fileName: string;
+  mimeType?: string;
+  fileSizeBytes?: number;
+  notes?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  isFavorite?: boolean;
+}
+
+export interface DocumentStats {
+  total: number;
+  favorites: number;
+  categoriesCount: Record<DocumentCategory, number>;
+  totalSizeBytes: number;
+}
+

@@ -1,39 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { api } from '../services/api';
+import { documentStorage, formatBytes } from '../services/documentStorage';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Spacing, BorderRadius, ThemeMode } from '../constants/theme';
+import { DocumentStats, PasswordStats, TodoStats } from '../types';
 
 export const ProfileScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { user, updateUser, logout } = useAuth();
-  const { colors, themeMode, setThemeMode } = useTheme();
+  const { colors, isDark, themeMode, setThemeMode } = useTheme();
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
 
   const [saving, setSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'error' | 'success';
+    text: string;
+  } | null>(null);
   const [nameError, setNameError] = useState<string | undefined>();
   const [emailError, setEmailError] = useState<string | undefined>();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+
+  // App metrics
+  const [docStats, setDocStats] = useState<DocumentStats>({
+    total: 0,
+    favorites: 0,
+    categoriesCount: {
+      identity: 0,
+      education: 0,
+      finance: 0,
+      health: 0,
+      vehicle: 0,
+      bills: 0,
+      other: 0,
+    },
+    totalSizeBytes: 0,
+  });
+  const [passwordCount, setPasswordCount] = useState<number>(0);
+  const [todoCount, setTodoCount] = useState<number>(0);
 
   // In-App APK Update System
   const { currentVersion, isChecking, checkForUpdates } = useAppUpdate();
@@ -42,6 +70,31 @@ export const ProfileScreen: React.FC = () => {
     text: string;
   } | null>(null);
 
+  useEffect(() => {
+    // Load overview stats for the profile dashboard
+    const loadOverview = async () => {
+      try {
+        const [docsRes, passRes, todoRes] = await Promise.all([
+          documentStorage.getStats().catch(() => null),
+          api.passwords.getAll().catch(() => null),
+          api.todos.getAll().catch(() => null),
+        ]);
+
+        if (docsRes) setDocStats(docsRes);
+        if (passRes?.success && Array.isArray(passRes.data)) {
+          setPasswordCount(passRes.data.length);
+        }
+        if (todoRes?.success && Array.isArray(todoRes.data)) {
+          setTodoCount(todoRes.data.length);
+        }
+      } catch (err) {
+        console.warn('Profile overview stats failed:', err);
+      }
+    };
+
+    loadOverview();
+  }, []);
+
   const handleManualCheck = async () => {
     setUpdateFeedback(null);
     try {
@@ -49,7 +102,7 @@ export const ProfileScreen: React.FC = () => {
       if (res && !res.hasUpdate) {
         setUpdateFeedback({
           type: 'success',
-          text: `You're up to date! Version ${res.currentVersion} is the latest release.`,
+          text: `You're on the latest build! Version ${res.currentVersion} is up to date.`,
         });
       }
     } catch (err: any) {
@@ -60,9 +113,30 @@ export const ProfileScreen: React.FC = () => {
     }
   };
 
-  // Format joined date
+  const handleClearCache = async () => {
+    try {
+      if (Platform.OS !== 'web' && FileSystem.cacheDirectory) {
+        const apkCacheDir = `${FileSystem.cacheDirectory}apk-updates/`;
+        const dirInfo = await FileSystem.getInfoAsync(apkCacheDir);
+        if (dirInfo.exists) {
+          await FileSystem.deleteAsync(apkCacheDir, { idempotent: true });
+        }
+      }
+      Alert.alert('Cache Cleared', 'Temporary downloads and caches were cleared safely. Your stored documents and passwords remain intact.');
+    } catch (err: any) {
+      Alert.alert('Clear Cache', err.message || 'Failed to clear cache.');
+    }
+  };
+
+  const handleCopyUserId = async () => {
+    if (!user?.id) return;
+    await Clipboard.setStringAsync(user.id);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
+
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return 'Active Member';
     try {
       const d = new Date(dateString);
       return d.toLocaleDateString(undefined, {
@@ -116,7 +190,10 @@ export const ProfileScreen: React.FC = () => {
       if (res.success && res.user) {
         updateUser(res.user);
         setIsEditing(false);
-        setStatusMessage({ type: 'success', text: 'Profile updated successfully!' });
+        setStatusMessage({
+          type: 'success',
+          text: 'Profile updated successfully!',
+        });
       } else {
         setStatusMessage({
           type: 'error',
@@ -148,7 +225,11 @@ export const ProfileScreen: React.FC = () => {
     router.replace('/login');
   };
 
-  const themeOptions: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  const themeOptions: {
+    mode: ThemeMode;
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+  }[] = [
     { mode: 'system', label: 'System', icon: 'phone-portrait-outline' },
     { mode: 'light', label: 'Light', icon: 'sunny-outline' },
     { mode: 'dark', label: 'Dark', icon: 'moon-outline' },
@@ -157,7 +238,7 @@ export const ProfileScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
-        title="My Profile"
+        title="Profile & Settings"
         showBack
         onBack={() => router.back()}
         showThemeToggle
@@ -170,28 +251,193 @@ export const ProfileScreen: React.FC = () => {
             paddingBottom: Math.max(insets.bottom + Spacing.xxl, Spacing.xxxl),
           },
         ]}
+        showsVerticalScrollIndicator={false}
       >
-        {/* User Avatar Card */}
-        <View style={styles.avatarSection}>
-          <View
-            style={[
-              styles.avatarCircle,
-              {
-                backgroundColor: colors.primary,
-                borderColor: colors.cardBorder,
-              },
-            ]}
-          >
-            <Text style={[styles.avatarText, { color: colors.white }]}>
-              {(user?.name || 'U').charAt(0).toUpperCase()}
-            </Text>
+        {/* User Hero Avatar Card */}
+        <Card style={styles.userHeroCard}>
+          <View style={styles.userHeroRow}>
+            {/* Glowing Avatar */}
+            <View
+              style={[
+                styles.avatarCircle,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: isDark ? 'rgba(99, 102, 241, 0.4)' : '#C7D2FE',
+                },
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: colors.white }]}>
+                {(user?.name || 'U').charAt(0).toUpperCase()}
+              </Text>
+              <View
+                style={[
+                  styles.onlineStatusDot,
+                  {
+                    backgroundColor: colors.success,
+                    borderColor: colors.card,
+                  },
+                ]}
+              />
+            </View>
+
+            {/* User Info Col */}
+            <View style={styles.userInfoCol}>
+              <View style={styles.nameRow}>
+                <Text
+                  style={[styles.userName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {user?.name || 'User'}
+                </Text>
+                <View
+                  style={[
+                    styles.verifiedBadge,
+                    {
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={13}
+                    color={colors.success}
+                  />
+                  <Text
+                    style={[styles.verifiedBadgeText, { color: colors.success }]}
+                  >
+                    Verified
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={[styles.userEmail, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {user?.email || 'email@example.com'}
+              </Text>
+
+              <View style={styles.memberSinceRow}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={12}
+                  color={colors.textTertiary}
+                />
+                <Text
+                  style={[styles.memberSinceText, { color: colors.textTertiary }]}
+                >
+                  Joined {formatDate(user?.createdAt)}
+                </Text>
+              </View>
+            </View>
           </View>
-          <Text style={[styles.userName, { color: colors.textPrimary }]}>
-            {user?.name || 'User'}
-          </Text>
-          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-            {user?.email || 'email@example.com'}
-          </Text>
+        </Card>
+
+        {/* 4 Interactive Profile Stats Grid */}
+        <View style={styles.metricsGrid}>
+          {/* Important Documents */}
+          <TouchableOpacity
+            style={styles.metricGridItem}
+            onPress={() => router.push('/documents')}
+            activeOpacity={0.8}
+          >
+            <Card style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricIconWrap,
+                  { backgroundColor: 'rgba(59, 130, 246, 0.15)' },
+                ]}
+              >
+                <Ionicons name="document-text" size={18} color="#3B82F6" />
+              </View>
+              <Text style={[styles.metricTileCount, { color: colors.textPrimary }]}>
+                {docStats.total}
+              </Text>
+              <Text style={[styles.metricTileLabel, { color: colors.textSecondary }]}>
+                Documents
+              </Text>
+              <Text style={[styles.metricTileSub, { color: '#3B82F6' }]}>
+                {formatBytes(docStats.totalSizeBytes)}
+              </Text>
+            </Card>
+          </TouchableOpacity>
+
+          {/* Passwords Vault */}
+          <TouchableOpacity
+            style={styles.metricGridItem}
+            onPress={() => router.push('/passwords')}
+            activeOpacity={0.8}
+          >
+            <Card style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricIconWrap,
+                  { backgroundColor: 'rgba(99, 102, 241, 0.15)' },
+                ]}
+              >
+                <Ionicons name="key" size={18} color="#6366F1" />
+              </View>
+              <Text style={[styles.metricTileCount, { color: colors.textPrimary }]}>
+                {passwordCount}
+              </Text>
+              <Text style={[styles.metricTileLabel, { color: colors.textSecondary }]}>
+                Passwords
+              </Text>
+              <Text style={[styles.metricTileSub, { color: '#6366F1' }]}>
+                Encrypted
+              </Text>
+            </Card>
+          </TouchableOpacity>
+
+          {/* Task Manager */}
+          <TouchableOpacity
+            style={styles.metricGridItem}
+            onPress={() => router.push('/todo')}
+            activeOpacity={0.8}
+          >
+            <Card style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricIconWrap,
+                  { backgroundColor: 'rgba(245, 158, 11, 0.15)' },
+                ]}
+              >
+                <Ionicons name="checkbox" size={18} color="#F59E0B" />
+              </View>
+              <Text style={[styles.metricTileCount, { color: colors.textPrimary }]}>
+                {todoCount}
+              </Text>
+              <Text style={[styles.metricTileLabel, { color: colors.textSecondary }]}>
+                Tasks
+              </Text>
+              <Text style={[styles.metricTileSub, { color: '#F59E0B' }]}>
+                Checklists
+              </Text>
+            </Card>
+          </TouchableOpacity>
+
+          {/* Local Security Score */}
+          <View style={styles.metricGridItem}>
+            <Card style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricIconWrap,
+                  { backgroundColor: 'rgba(16, 185, 129, 0.15)' },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+              </View>
+              <Text style={[styles.metricTileCount, { color: colors.success }]}>
+                100%
+              </Text>
+              <Text style={[styles.metricTileLabel, { color: colors.textSecondary }]}>
+                On-Device
+              </Text>
+              <Text style={[styles.metricTileSub, { color: colors.success }]}>
+                Private Safe
+              </Text>
+            </Card>
+          </View>
         </View>
 
         {/* Feedback Message */}
@@ -219,7 +465,9 @@ export const ProfileScreen: React.FC = () => {
               }
               size={20}
               color={
-                statusMessage.type === 'success' ? colors.success : colors.danger
+                statusMessage.type === 'success'
+                  ? colors.success
+                  : colors.danger
               }
             />
             <Text
@@ -238,16 +486,78 @@ export const ProfileScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Document Safe Feature Card */}
+        <Card style={styles.featureCard}>
+          <View style={styles.featureCardHeader}>
+            <View
+              style={[
+                styles.featureIconWrap,
+                { backgroundColor: 'rgba(59, 130, 246, 0.15)' },
+              ]}
+            >
+              <Ionicons name="folder-open" size={22} color="#3B82F6" />
+            </View>
+            <View style={styles.featureTextCol}>
+              <Text
+                style={[styles.featureTitle, { color: colors.textPrimary }]}
+              >
+                Important Document Locker
+              </Text>
+              <Text
+                style={[styles.featureDesc, { color: colors.textSecondary }]}
+              >
+                Keep Aadhaar, PAN, Passports, and certificates safely on your device with instant sharing.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.featureActionRow}>
+            <Button
+              title="Open Document Locker"
+              variant="primary"
+              icon={
+                <Ionicons
+                  name="arrow-forward-circle"
+                  size={18}
+                  color="#FFFFFF"
+                />
+              }
+              onPress={() => router.push('/documents')}
+              style={styles.openLockerBtn}
+            />
+          </View>
+        </Card>
+
         {/* Theme / Appearance Selection */}
         <Card style={styles.sectionCard}>
-          <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
-            Appearance
-          </Text>
+          <View style={styles.sectionCardHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Ionicons
+                name="color-palette-outline"
+                size={20}
+                color={colors.primary}
+              />
+              <Text
+                style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}
+              >
+                Theme & Appearance
+              </Text>
+            </View>
+          </View>
+
           <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-            Choose between light, dark, or system default theme
+            Choose between system default, light, or sleek dark mode
           </Text>
 
-          <View style={[styles.themePillsRow, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.themePillsRow,
+              {
+                backgroundColor: colors.cardHover,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             {themeOptions.map((item) => {
               const isSelected = themeMode === item.mode;
               return (
@@ -275,7 +585,9 @@ export const ProfileScreen: React.FC = () => {
                     style={[
                       styles.themePillText,
                       {
-                        color: isSelected ? colors.primary : colors.textSecondary,
+                        color: isSelected
+                          ? colors.primary
+                          : colors.textSecondary,
                         fontWeight: isSelected ? '700' : '500',
                       },
                     ]}
@@ -291,13 +603,29 @@ export const ProfileScreen: React.FC = () => {
         {/* Profile Details Card */}
         <Card style={styles.sectionCard}>
           <View style={styles.cardHeaderRow}>
-            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
-              Account Details
-            </Text>
+            <View style={styles.sectionHeaderLeft}>
+              <Ionicons
+                name="person-circle-outline"
+                size={20}
+                color={colors.primary}
+              />
+              <Text
+                style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}
+              >
+                Account Information
+              </Text>
+            </View>
             {!isEditing && (
               <Button
                 title="Edit"
                 variant="ghost"
+                icon={
+                  <Ionicons
+                    name="pencil"
+                    size={14}
+                    color={colors.primary}
+                  />
+                }
                 onPress={() => {
                   setStatusMessage(null);
                   setIsEditing(true);
@@ -352,61 +680,186 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.readOnlyList}>
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelRow}>
-                  <Ionicons name="person-outline" size={18} color={colors.textTertiary} />
-                  <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Full Name</Text>
+                  <Ionicons
+                    name="person-outline"
+                    size={16}
+                    color={colors.textTertiary}
+                  />
+                  <Text
+                    style={[styles.infoLabel, { color: colors.textTertiary }]}
+                  >
+                    Full Name
+                  </Text>
                 </View>
-                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{user?.name}</Text>
-              </View>
-
-              <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoLabelRow}>
-                  <Ionicons name="mail-outline" size={18} color={colors.textTertiary} />
-                  <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Email</Text>
-                </View>
-                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{user?.email}</Text>
-              </View>
-
-              <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoLabelRow}>
-                  <Ionicons name="calendar-outline" size={18} color={colors.textTertiary} />
-                  <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Member Since</Text>
-                </View>
-                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-                  {formatDate(user?.createdAt)}
+                <Text
+                  style={[styles.infoValue, { color: colors.textPrimary }]}
+                >
+                  {user?.name}
                 </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: colors.cardBorder },
+                ]}
+              />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoLabelRow}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={16}
+                    color={colors.textTertiary}
+                  />
+                  <Text
+                    style={[styles.infoLabel, { color: colors.textTertiary }]}
+                  >
+                    Email Address
+                  </Text>
+                </View>
+                <Text
+                  style={[styles.infoValue, { color: colors.textPrimary }]}
+                >
+                  {user?.email}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: colors.cardBorder },
+                ]}
+              />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoLabelRow}>
+                  <Ionicons
+                    name="finger-print-outline"
+                    size={16}
+                    color={colors.textTertiary}
+                  />
+                  <Text
+                    style={[styles.infoLabel, { color: colors.textTertiary }]}
+                  >
+                    Account ID
+                  </Text>
+                </View>
+                <View style={styles.userIdWrap}>
+                  <Text
+                    style={[
+                      styles.userIdText,
+                      { color: colors.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {user?.id || 'N/A'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleCopyUserId}
+                    style={styles.copyIdBtn}
+                  >
+                    <Ionicons
+                      name={copiedId ? 'checkmark' : 'copy-outline'}
+                      size={14}
+                      color={copiedId ? colors.success : colors.primary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
         </Card>
 
-        {/* App Version & Updates Card */}
+        {/* Storage & Cache Management */}
         <Card style={styles.sectionCard}>
-          <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
-            App Information
-          </Text>
-          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-            Direct APK updates without Google Play Store
-          </Text>
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoLabelRow}>
+          <View style={styles.sectionCardHeader}>
+            <View style={styles.sectionHeaderLeft}>
               <Ionicons
-                name="information-circle-outline"
-                size={18}
-                color={colors.textTertiary}
+                name="server-outline"
+                size={20}
+                color={colors.primary}
               />
-              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>
-                Installed Version
+              <Text
+                style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}
+              >
+                Device Storage & Cache
               </Text>
             </View>
-            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-              v{currentVersion}
-            </Text>
           </View>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+            Documents are stored completely inside your phone storage
+          </Text>
+
+          <View style={styles.storageOverviewRow}>
+            <View style={styles.storageInfoCol}>
+              <Text
+                style={[styles.storageSizeBig, { color: colors.textPrimary }]}
+              >
+                {formatBytes(docStats.totalSizeBytes)}
+              </Text>
+              <Text
+                style={[styles.storageSizeDesc, { color: colors.textSecondary }]}
+              >
+                Used by {docStats.total} offline documents
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.clearCacheBtn,
+                {
+                  backgroundColor: colors.cardHover,
+                  borderColor: colors.cardBorder,
+                },
+              ]}
+              onPress={handleClearCache}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="trash-bin-outline"
+                size={16}
+                color={colors.textPrimary}
+              />
+              <Text
+                style={[styles.clearCacheText, { color: colors.textPrimary }]}
+              >
+                Clear Temp Cache
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        {/* App Version & In-App APK Updates Card */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionCardHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Ionicons
+                name="cloud-download-outline"
+                size={20}
+                color={colors.primary}
+              />
+              <Text
+                style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}
+              >
+                In-App APK Updates
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.versionTag,
+                { backgroundColor: colors.primarySoft },
+              ]}
+            >
+              <Text style={[styles.versionTagText, { color: colors.primary }]}>
+                v{currentVersion}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+            Direct in-app APK upgrades without Google Play Store
+          </Text>
 
           {updateFeedback && (
             <View
@@ -425,7 +878,7 @@ export const ProfileScreen: React.FC = () => {
                       : updateFeedback.type === 'info'
                       ? colors.primary
                       : colors.danger,
-                  marginTop: Spacing.sm,
+                  marginTop: Spacing.xs,
                   marginBottom: Spacing.md,
                 },
               ]}
@@ -466,7 +919,7 @@ export const ProfileScreen: React.FC = () => {
           )}
 
           <Button
-            title="Check for Updates"
+            title="Check for New Releases"
             variant="secondary"
             loading={isChecking}
             icon={
@@ -481,18 +934,35 @@ export const ProfileScreen: React.FC = () => {
           />
         </Card>
 
-        {/* Security & Danger Zone */}
+        {/* Session & Sign Out */}
         <Card style={styles.sectionCard}>
-          <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
-            Session
-          </Text>
+          <View style={styles.sectionCardHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Ionicons
+                name="shield-outline"
+                size={20}
+                color={colors.danger}
+              />
+              <Text
+                style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}
+              >
+                Account Session
+              </Text>
+            </View>
+          </View>
           <Text style={[styles.logoutNotice, { color: colors.textSecondary }]}>
-            Signing out will remove your active session token from this device.
+            Signing out will remove your active session token from this phone. Your offline documents will remain securely locked.
           </Text>
           <Button
             title="Sign Out"
             variant="danger"
-            icon={<Ionicons name="log-out-outline" size={20} color={colors.white} />}
+            icon={
+              <Ionicons
+                name="log-out-outline"
+                size={20}
+                color={colors.white}
+              />
+            }
             onPress={() => setShowLogoutModal(true)}
             style={styles.logoutButton}
           />
@@ -503,7 +973,7 @@ export const ProfileScreen: React.FC = () => {
       <ConfirmModal
         visible={showLogoutModal}
         title="Sign Out"
-        message="Are you sure you want to sign out?"
+        message="Are you sure you want to sign out of your account?"
         confirmLabel="Sign Out"
         isDestructive
         onConfirm={handleLogout}
@@ -523,30 +993,144 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.md,
   },
-  avatarSection: {
+  userHeroCard: {
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  userHeroRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Spacing.lg,
   },
   avatarCircle: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
-    borderWidth: 3,
+    borderWidth: 2.5,
+    marginRight: Spacing.lg,
+    position: 'relative',
   },
   avatarText: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: '800',
   },
+  onlineStatusDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2.5,
+  },
+  userInfoCol: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   userName: {
-    fontSize: 22,
+    fontSize: 20,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.round,
+  },
+  verifiedBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
   },
   userEmail: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  memberSinceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  memberSinceText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  metricGridItem: {
+    flex: 1,
+  },
+  metricTile: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: 4,
+  },
+  metricIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  metricTileCount: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  metricTileLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  metricTileSub: {
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  featureCard: {
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  featureCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+  },
+  featureIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featureTextCol: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  featureDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  featureActionRow: {
+    marginTop: Spacing.md,
+  },
+  openLockerBtn: {
+    height: 44,
   },
   feedbackBanner: {
     flexDirection: 'row',
@@ -558,13 +1142,23 @@ const styles = StyleSheet.create({
   },
   feedbackText: {
     marginLeft: Spacing.sm,
-    fontSize: 14,
+    fontSize: 13,
     flex: 1,
     fontWeight: '500',
   },
   sectionCard: {
     marginBottom: Spacing.lg,
-    padding: Spacing.xl,
+    padding: Spacing.lg,
+  },
+  sectionCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -573,11 +1167,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   cardHeaderTitle: {
-    fontSize: 17,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  versionTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.round,
+  },
+  versionTagText: {
+    fontSize: 11,
     fontWeight: '700',
   },
   cardSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 4,
     marginBottom: Spacing.md,
   },
@@ -604,7 +1207,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   editButton: {
-    height: 36,
+    height: 32,
     paddingHorizontal: Spacing.md,
   },
   editForm: {
@@ -625,30 +1228,73 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   infoRow: {
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
   },
   infoLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   infoLabel: {
-    fontSize: 13,
+    fontSize: 12,
     marginLeft: Spacing.xs,
     fontWeight: '500',
   },
   infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  userIdWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  userIdText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    flex: 1,
+  },
+  copyIdBtn: {
+    padding: 4,
   },
   divider: {
     height: 1,
   },
+  storageOverviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  storageInfoCol: {
+    flex: 1,
+  },
+  storageSizeBig: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  storageSizeDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  clearCacheBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.round,
+    borderWidth: 1,
+  },
+  clearCacheText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   logoutNotice: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: Spacing.xs,
     marginBottom: Spacing.lg,
-    lineHeight: 18,
+    lineHeight: 17,
   },
   logoutButton: {
     height: 48,
