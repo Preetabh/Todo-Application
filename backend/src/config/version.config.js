@@ -8,7 +8,7 @@ const getVersionConfig = () => {
     minimumVersion: process.env.APP_MINIMUM_VERSION || '1.0.0',
     apkUrl:
       process.env.APP_APK_URL ||
-      'https://expo.dev/artifacts/eas/rWXOudTP7P9rL2G8Z8gWHkVKUGB718apGCDWbWW_L30.apk',
+      'https://expo.dev/artifacts/eas/mjJ7vezRhGzxUQ1jlZyPmCGiNG3TGHYLL789wtNCKxw.apk',
     updateMessage:
       process.env.APP_UPDATE_MESSAGE ||
       'A new version of DigentTech Todo is available with improvements and bug fixes.',
