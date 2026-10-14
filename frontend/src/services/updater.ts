@@ -3,14 +3,20 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
 import { api } from './api';
 import { AppVersionInfo, UpdateCheckResult } from '../types';
 
 // In-memory session tracking for dismissed non-forced updates
 let dismissedVersionInSession: string | null = null;
+let lastInstallAttemptTimestamp: number | null = null;
+let lastInstallAttemptVersion: string | null = null;
 
 // Track active download resumable instance to allow cancellation
 let currentDownloadTask: FileSystem.DownloadResumable | null = null;
+
+const SNOOZE_VERSION_KEY = 'digenttech_update_snooze_version';
+const SNOOZE_EXPIRY_KEY = 'digenttech_update_snooze_expiry';
 
 /**
  * Get current running application version.
@@ -21,7 +27,7 @@ export const getCurrentAppVersion = (): string => {
   return (
     Application.nativeApplicationVersion ||
     Constants.expoConfig?.version ||
-    '1.0.0'
+    '1.1.0'
   );
 };
 
@@ -71,7 +77,87 @@ export function compareVersions(v1: string, v2: string): number {
 }
 
 /**
- * Dismiss an update for the remainder of the current app session.
+ * Snooze an update so it does not annoy the user with repeated popups.
+ * Stores both in-memory session dismissal and persistent expiry (default 24 hours).
+ */
+export async function snoozeVersion(version: string, hours: number = 24): Promise<void> {
+  dismissedVersionInSession = version;
+  const expiry = Date.now() + hours * 60 * 60 * 1000;
+
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(SNOOZE_VERSION_KEY, version);
+        window.localStorage.setItem(SNOOZE_EXPIRY_KEY, expiry.toString());
+      }
+    } else {
+      await SecureStore.setItemAsync(SNOOZE_VERSION_KEY, version);
+      await SecureStore.setItemAsync(SNOOZE_EXPIRY_KEY, expiry.toString());
+    }
+  } catch (err) {
+    console.warn('Failed to persist update snooze:', err);
+  }
+}
+
+/**
+ * Check if a version was snoozed either in current session or within 24h snooze window.
+ */
+export async function isVersionSnoozed(version: string): Promise<boolean> {
+  if (dismissedVersionInSession === version) {
+    return true;
+  }
+
+  try {
+    let savedVersion: string | null = null;
+    let savedExpiry: string | null = null;
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        savedVersion = window.localStorage.getItem(SNOOZE_VERSION_KEY);
+        savedExpiry = window.localStorage.getItem(SNOOZE_EXPIRY_KEY);
+      }
+    } else {
+      savedVersion = await SecureStore.getItemAsync(SNOOZE_VERSION_KEY);
+      savedExpiry = await SecureStore.getItemAsync(SNOOZE_EXPIRY_KEY);
+    }
+
+    if (savedVersion === version && savedExpiry) {
+      const expiryTimestamp = parseInt(savedExpiry, 10);
+      if (!isNaN(expiryTimestamp) && Date.now() < expiryTimestamp) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to read update snooze:', err);
+  }
+
+  return false;
+}
+
+/**
+ * Record an APK installation attempt so we avoid spamming popups right after launching the installer.
+ */
+export function recordInstallAttempt(version: string): void {
+  lastInstallAttemptVersion = version;
+  lastInstallAttemptTimestamp = Date.now();
+  dismissedVersionInSession = version;
+}
+
+/**
+ * Check if the user recently triggered package installation within cooldown period (default 20 mins).
+ */
+export function hasRecentInstallAttempt(version: string, cooldownMinutes: number = 20): boolean {
+  if (lastInstallAttemptVersion === version && lastInstallAttemptTimestamp) {
+    const elapsed = Date.now() - lastInstallAttemptTimestamp;
+    if (elapsed < cooldownMinutes * 60 * 1000) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Dismiss an update for the current app session.
  */
 export function dismissVersionForSession(version: string): void {
   dismissedVersionInSession = version;
@@ -85,10 +171,26 @@ export function isVersionDismissedInSession(version: string): boolean {
 }
 
 /**
- * Clear dismissed session version (e.g. on manual check).
+ * Clear all snoozes and dismissals (e.g. when user manually taps "Check for Updates").
  */
-export function clearDismissedSessionVersion(): void {
+export async function clearDismissedSessionVersion(): Promise<void> {
   dismissedVersionInSession = null;
+  lastInstallAttemptTimestamp = null;
+  lastInstallAttemptVersion = null;
+
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(SNOOZE_VERSION_KEY);
+        window.localStorage.removeItem(SNOOZE_EXPIRY_KEY);
+      }
+    } else {
+      await SecureStore.deleteItemAsync(SNOOZE_VERSION_KEY);
+      await SecureStore.deleteItemAsync(SNOOZE_EXPIRY_KEY);
+    }
+  } catch {
+    // Ignore clear errors
+  }
 }
 
 /**
@@ -212,6 +314,9 @@ export async function downloadAndInstallApk(
       flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
       type: 'application/vnd.android.package-archive',
     });
+
+    // Mark install attempt with cooldown so app doesn't immediately re-prompt on return
+    recordInstallAttempt(targetVersion);
 
     return { success: true, uri: downloadResult.uri };
   } catch (error: any) {

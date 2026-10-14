@@ -12,8 +12,9 @@ import {
   checkAppUpdate,
   downloadAndInstallApk,
   cancelActiveDownload,
-  dismissVersionForSession,
-  isVersionDismissedInSession,
+  snoozeVersion,
+  isVersionSnoozed,
+  hasRecentInstallAttempt,
   clearDismissedSessionVersion,
   openUnknownAppSourcesSettings,
   openApkInBrowser,
@@ -33,9 +34,11 @@ interface UpdateContextType {
   showModal: boolean;
   currentVersion: string;
   checkForUpdates: (manual?: boolean) => Promise<UpdateCheckResult | null>;
+  openUpdateModal: () => void;
   startUpdate: () => Promise<void>;
   cancelDownload: () => Promise<void>;
   dismissModal: () => void;
+  snoozeUpdate: (hours?: number) => Promise<void>;
   openSettings: () => Promise<void>;
   openBrowserFallback: () => Promise<void>;
 }
@@ -44,6 +47,8 @@ const UpdateContext = createContext<UpdateContextType | undefined>(undefined);
 
 // Periodic check interval: 30 minutes while app is active
 const PERIODIC_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+// Minimum cooldown between automatic AppState switch checks (5 minutes)
+const APP_STATE_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
 
 export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -59,6 +64,7 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isUpdatingRef = useRef<boolean>(false);
+  const lastCheckTimestampRef = useRef<number>(0);
 
   const currentVersion = getCurrentAppVersion();
 
@@ -71,19 +77,28 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
       if (isUpdatingRef.current) return null;
 
       if (manual) {
-        clearDismissedSessionVersion();
+        await clearDismissedSessionVersion();
       }
 
       setIsChecking(true);
+      lastCheckTimestampRef.current = Date.now();
+
       try {
         const result = await checkAppUpdate();
         setUpdateInfo(result);
 
         if (result.hasUpdate) {
-          // If automatic and user dismissed this version in current session, suppress modal
-          if (!manual && isVersionDismissedInSession(result.latestVersion) && !result.isForced) {
-            // Dismissed for this session, do not show popup
-            return result;
+          if (!manual) {
+            // Check if user recently triggered install (e.g. package installer opened)
+            if (hasRecentInstallAttempt(result.latestVersion)) {
+              return result;
+            }
+
+            // Check if user snoozed this version (and it's not a required update)
+            const isSnoozed = await isVersionSnoozed(result.latestVersion);
+            if (isSnoozed && !result.isForced) {
+              return result;
+            }
           }
 
           // Show modal
@@ -107,6 +122,19 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
     },
     []
   );
+
+  /**
+   * Manually open the update modal if an update exists
+   */
+  const openUpdateModal = useCallback(() => {
+    if (updateInfo?.hasUpdate) {
+      setPhase('idle');
+      setErrorMessage(null);
+      setShowModal(true);
+    } else {
+      checkForUpdates(true);
+    }
+  }, [updateInfo, checkForUpdates]);
 
   /**
    * Begin APK download and trigger installer
@@ -157,15 +185,29 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   /**
-   * Dismiss the modal for the remainder of this session
+   * Dismiss the modal for now (and snooze for 24h)
    */
   const dismissModal = useCallback(() => {
     if (updateInfo && !updateInfo.isForced) {
-      dismissVersionForSession(updateInfo.latestVersion);
+      snoozeVersion(updateInfo.latestVersion, 24).catch(() => {});
     }
     setShowModal(false);
     setPhase('idle');
   }, [updateInfo]);
+
+  /**
+   * Snooze update reminders for specified hours (default 24 hours)
+   */
+  const snoozeUpdate = useCallback(
+    async (hours = 24) => {
+      if (updateInfo && !updateInfo.isForced) {
+        await snoozeVersion(updateInfo.latestVersion, hours);
+      }
+      setShowModal(false);
+      setPhase('idle');
+    },
+    [updateInfo]
+  );
 
   /**
    * Open Android unknown app settings
@@ -201,11 +243,19 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
     const subscription = AppState.addEventListener(
       'change',
       (nextAppState: AppStateStatus) => {
-        if (
+        const isReturningToActive =
           appStateRef.current.match(/inactive|background/) &&
-          nextAppState === 'active'
-        ) {
-          checkForUpdates(false);
+          nextAppState === 'active';
+
+        if (isReturningToActive) {
+          const now = Date.now();
+          const cooldownElapsed =
+            now - lastCheckTimestampRef.current >= APP_STATE_CHECK_COOLDOWN_MS;
+
+          // Only recheck if cooldown elapsed and not currently in the middle of updating
+          if (cooldownElapsed && !isUpdatingRef.current) {
+            checkForUpdates(false);
+          }
         }
         appStateRef.current = nextAppState;
       }
@@ -231,9 +281,11 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
         showModal,
         currentVersion,
         checkForUpdates,
+        openUpdateModal,
         startUpdate,
         cancelDownload,
         dismissModal,
+        snoozeUpdate,
         openSettings,
         openBrowserFallback,
       }}
@@ -252,6 +304,7 @@ export const UpdateProvider: React.FC<{ children: ReactNode }> = ({
         onUpdateNow={startUpdate}
         onCancelDownload={cancelDownload}
         onDismiss={dismissModal}
+        onSnooze={snoozeUpdate}
         onOpenSettings={openSettings}
         onOpenBrowserFallback={openBrowserFallback}
         onRetryInstall={startUpdate}
