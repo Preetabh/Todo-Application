@@ -6,20 +6,23 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { Colors, Spacing, BorderRadius } from '../constants/theme';
+import { Spacing, BorderRadius } from '../constants/theme';
 import { TodoStats } from '../types';
 
 export const HomeScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const { colors, isDark, toggleTheme } = useTheme();
 
   const [stats, setStats] = useState<TodoStats>({ total: 0, pending: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
@@ -68,43 +71,73 @@ export const HomeScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-
-      {/* Header Bar */}
-      <View style={styles.topBar}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Top Bar with Safe Area */}
+      <View
+        style={[
+          styles.topBar,
+          {
+            paddingTop: Math.max(insets.top + Spacing.sm, Spacing.lg),
+            borderBottomColor: colors.cardBorder,
+          },
+        ]}
+      >
         <View style={styles.userSection}>
-          <Text style={styles.greetingText}>{getGreeting()}</Text>
-          <Text style={styles.userNameText}>{user?.name || 'User'}</Text>
+          <Text style={[styles.greetingText, { color: colors.textSecondary }]}>
+            {getGreeting()}
+          </Text>
+          <Text style={[styles.userNameText, { color: colors.textPrimary }]}>
+            {user?.name || 'User'}
+          </Text>
         </View>
 
         <View style={styles.topActions}>
+          {/* Theme Toggle Button */}
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isDark ? 'sunny-outline' : 'moon-outline'}
+              size={20}
+              color={isDark ? '#FBBF24' : colors.primary}
+            />
+          </TouchableOpacity>
+
+          {/* Profile Button */}
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}
             onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
-            <Ionicons name="person-circle-outline" size={32} color={Colors.textPrimary} />
+            <Ionicons name="person-outline" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
 
+          {/* Logout Button */}
           <TouchableOpacity
-            style={[styles.iconButton, styles.logoutButton]}
+            style={[styles.iconButton, styles.logoutButton, { backgroundColor: colors.dangerSoft, borderColor: 'transparent' }]}
             onPress={() => setShowLogoutModal(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="log-out-outline" size={24} color={Colors.danger} />
+            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Math.max(insets.bottom + Spacing.xxl, Spacing.xxxl),
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.primary}
-            colors={[Colors.primary]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
@@ -112,88 +145,129 @@ export const HomeScreen: React.FC = () => {
         <Card style={styles.welcomeBanner}>
           <View style={styles.bannerContent}>
             <View style={styles.bannerTextCol}>
-              <Text style={styles.bannerTitle}>Daily Overview</Text>
-              <Text style={styles.bannerSubtitle}>
+              <Text style={[styles.bannerTitle, { color: colors.textPrimary }]}>
+                Daily Overview
+              </Text>
+              <Text style={[styles.bannerSubtitle, { color: colors.textSecondary }]}>
                 {stats.pending > 0
                   ? `You have ${stats.pending} task${stats.pending === 1 ? '' : 's'} pending.`
                   : 'All caught up! Excellent job.'}
               </Text>
             </View>
-            <View style={styles.bannerBadge}>
-              <Ionicons name="sparkles" size={24} color="#FBBF24" />
+            <View
+              style={[
+                styles.bannerBadge,
+                { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : 'rgba(245, 158, 11, 0.12)' },
+              ]}
+            >
+              <Ionicons name="sparkles" size={24} color="#F59E0B" />
             </View>
           </View>
         </Card>
 
         {/* Statistics Grid */}
-        <Text style={styles.sectionHeader}>Task Statistics</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textPrimary }]}>
+          Task Statistics
+        </Text>
         <View style={styles.statsRow}>
           {/* Total */}
-          <Card style={[styles.statCard, styles.totalCard]}>
-            <Ionicons name="list" size={24} color={Colors.accentSky} />
-            <Text style={styles.statCount}>{loading ? '-' : stats.total}</Text>
-            <Text style={styles.statLabel}>Total Tasks</Text>
+          <Card
+            style={styles.statCard}
+            variant={isDark ? 'default' : 'default'}
+          >
+            <Ionicons name="list" size={24} color={colors.accentSky} />
+            <Text style={[styles.statCount, { color: colors.textPrimary }]}>
+              {loading ? '-' : stats.total}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Total Tasks
+            </Text>
           </Card>
 
           {/* Pending */}
-          <Card style={[styles.statCard, styles.pendingCard]}>
-            <Ionicons name="time-outline" size={24} color={Colors.warning} />
-            <Text style={styles.statCount}>{loading ? '-' : stats.pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+          <Card
+            style={styles.statCard}
+            variant={isDark ? 'default' : 'default'}
+          >
+            <Ionicons name="time-outline" size={24} color={colors.warning} />
+            <Text style={[styles.statCount, { color: colors.textPrimary }]}>
+              {loading ? '-' : stats.pending}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Pending
+            </Text>
           </Card>
 
           {/* Completed */}
-          <Card style={[styles.statCard, styles.completedCard]}>
-            <Ionicons name="checkmark-done-circle" size={24} color={Colors.success} />
-            <Text style={styles.statCount}>{loading ? '-' : stats.completed}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+          <Card
+            style={styles.statCard}
+            variant={isDark ? 'default' : 'default'}
+          >
+            <Ionicons name="checkmark-done-circle" size={24} color={colors.success} />
+            <Text style={[styles.statCount, { color: colors.textPrimary }]}>
+              {loading ? '-' : stats.completed}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Completed
+            </Text>
           </Card>
         </View>
 
         {/* Quick Actions */}
-        <Text style={styles.sectionHeader}>Quick Actions</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textPrimary }]}>
+          Quick Actions
+        </Text>
         <Card style={styles.actionsCard}>
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push('/todo')}
             activeOpacity={0.7}
           >
-            <View style={[styles.actionIconCircle, { backgroundColor: Colors.primarySoft }]}>
-              <Ionicons name="checkbox-outline" size={22} color={Colors.primaryLight} />
+            <View style={[styles.actionIconCircle, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="checkbox-outline" size={22} color={colors.primary} />
             </View>
             <View style={styles.actionTextCol}>
-              <Text style={styles.actionTitle}>Manage Todos</Text>
-              <Text style={styles.actionDescription}>
+              <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+                Manage Todos
+              </Text>
+              <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>
                 View, add, edit, and organize all your tasks
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
 
-          <View style={styles.actionDivider} />
+          <View style={[styles.actionDivider, { backgroundColor: colors.cardBorder }]} />
 
           <TouchableOpacity
             style={styles.actionItem}
             onPress={() => router.push('/profile')}
             activeOpacity={0.7}
           >
-            <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
-              <Ionicons name="person-outline" size={22} color={Colors.accentSky} />
+            <View
+              style={[
+                styles.actionIconCircle,
+                { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.1)' },
+              ]}
+            >
+              <Ionicons name="person-outline" size={22} color={colors.accentSky} />
             </View>
             <View style={styles.actionTextCol}>
-              <Text style={styles.actionTitle}>My Profile</Text>
-              <Text style={styles.actionDescription}>
-                Update name, email, and account settings
+              <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+                My Profile
+              </Text>
+              <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>
+                Update name, email, and theme preferences
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </Card>
 
         {/* Primary CTA */}
         <Button
           title="Open Todo List"
-          icon={<Ionicons name="add-circle-outline" size={20} color={Colors.white} />}
+          icon={<Ionicons name="add-circle-outline" size={20} color={colors.white} />}
           onPress={() => router.push('/todo')}
           style={styles.ctaButton}
         />
@@ -218,32 +292,29 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxl,
     paddingBottom: Spacing.md,
-    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
   },
   userSection: {
     flex: 1,
   },
   greetingText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   userNameText: {
     fontSize: 22,
     fontWeight: '800',
-    color: Colors.textPrimary,
     marginTop: 2,
+    letterSpacing: -0.3,
   },
   topActions: {
     flexDirection: 'row',
@@ -251,21 +322,22 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   iconButton: {
-    padding: Spacing.xs,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoutButton: {
-    backgroundColor: Colors.dangerSoft,
     borderRadius: BorderRadius.round,
-    padding: Spacing.sm,
   },
   scrollContent: {
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xxxl,
+    paddingTop: Spacing.lg,
   },
   welcomeBanner: {
-    marginTop: Spacing.md,
-    backgroundColor: '#16223B',
-    borderColor: '#26375E',
+    padding: Spacing.xl,
   },
   bannerContent: {
     flexDirection: 'row',
@@ -279,27 +351,25 @@ const styles = StyleSheet.create({
   bannerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.textPrimary,
   },
   bannerSubtitle: {
     fontSize: 13,
-    color: Colors.textSecondary,
     marginTop: 4,
+    lineHeight: 18,
   },
   bannerBadge: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionHeader: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textPrimary,
     marginTop: Spacing.xl,
     marginBottom: Spacing.md,
+    letterSpacing: -0.2,
   },
   statsRow: {
     flexDirection: 'row',
@@ -309,27 +379,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.sm,
-  },
-  totalCard: {
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-  },
-  pendingCard: {
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  completedCard: {
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: Spacing.xs,
   },
   statCount: {
     fontSize: 24,
     fontWeight: '800',
-    color: Colors.textPrimary,
     marginTop: Spacing.xs,
   },
   statLabel: {
     fontSize: 12,
-    color: Colors.textSecondary,
     marginTop: 2,
+    fontWeight: '500',
   },
   actionsCard: {
     padding: 0,
@@ -341,9 +401,9 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   actionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
@@ -354,16 +414,13 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.textPrimary,
   },
   actionDescription: {
     fontSize: 12,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   actionDivider: {
     height: 1,
-    backgroundColor: Colors.cardBorder,
     marginHorizontal: Spacing.lg,
   },
   ctaButton: {

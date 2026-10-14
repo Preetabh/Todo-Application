@@ -8,7 +8,8 @@ import {
   TextStyle,
   View,
 } from 'react-native';
-import { Colors, BorderRadius, Spacing } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { BorderRadius, Spacing } from '../constants/theme';
 
 interface ButtonProps {
   title: string;
@@ -31,33 +32,50 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   icon,
 }) => {
-  const getContainerStyle = () => {
+  const { colors } = useTheme();
+
+  const getContainerStyle = (): ViewStyle => {
     switch (variant) {
       case 'secondary':
-        return styles.secondaryContainer;
+        return {
+          backgroundColor: colors.cardHover,
+          borderWidth: 1,
+          borderColor: colors.cardBorder,
+        };
       case 'outline':
-        return styles.outlineContainer;
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: colors.primary,
+        };
       case 'danger':
-        return styles.dangerContainer;
+        return {
+          backgroundColor: colors.danger,
+        };
       case 'ghost':
-        return styles.ghostContainer;
+        return {
+          backgroundColor: 'transparent',
+        };
       case 'primary':
       default:
-        return styles.primaryContainer;
+        return {
+          backgroundColor: colors.primary,
+        };
     }
   };
 
-  const getTextStyle = () => {
+  const getTextStyle = (): TextStyle => {
     switch (variant) {
       case 'outline':
-        return styles.outlineText;
+        return { color: colors.primaryLight };
       case 'ghost':
-        return styles.ghostText;
-      case 'danger':
+        return { color: colors.primary };
       case 'secondary':
+        return { color: colors.textPrimary };
+      case 'danger':
       case 'primary':
       default:
-        return styles.filledText;
+        return { color: colors.white };
     }
   };
 
@@ -78,7 +96,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'outline' ? Colors.primary : Colors.white}
+          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.white}
         />
       ) : (
         <View style={styles.contentRow}>
@@ -92,29 +110,12 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   baseContainer: {
-    height: 52,
+    height: 50,
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
     flexDirection: 'row',
-  },
-  primaryContainer: {
-    backgroundColor: Colors.primary,
-  },
-  secondaryContainer: {
-    backgroundColor: Colors.cardBorder,
-  },
-  outlineContainer: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-  },
-  dangerContainer: {
-    backgroundColor: Colors.danger,
-  },
-  ghostContainer: {
-    backgroundColor: 'transparent',
   },
   disabledContainer: {
     opacity: 0.5,
@@ -128,17 +129,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   baseText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.2,
-  },
-  filledText: {
-    color: Colors.white,
-  },
-  outlineText: {
-    color: Colors.primaryLight,
-  },
-  ghostText: {
-    color: Colors.primaryLight,
   },
 });

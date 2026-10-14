@@ -2,29 +2,23 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { AuthProvider } from '../context/AuthContext';
-import { Colors } from '../constants/theme';
 
-// Keep splash screen visible until initial auth bootstrap completes
+// Keep splash screen visible until initial bootstrap completes
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function RootLayout() {
-  useEffect(() => {
-    // Hide splash screen after initialization
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {});
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, []);
+function AppNavigation() {
+  const { isDark, colors } = useTheme();
 
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
+          contentStyle: { backgroundColor: colors.background },
           animation: 'fade',
         }}
       >
@@ -35,6 +29,26 @@ export default function RootLayout() {
         <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="todo" options={{ animation: 'slide_from_right' }} />
       </Stack>
-    </AuthProvider>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppNavigation />
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

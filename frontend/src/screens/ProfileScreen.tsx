@@ -4,23 +4,25 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  StatusBar,
-  Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { ErrorMessage } from '../components/ErrorMessage';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { Colors, Spacing, BorderRadius } from '../constants/theme';
+import { Spacing, BorderRadius, ThemeMode } from '../constants/theme';
 
 export const ProfileScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { user, updateUser, logout } = useAuth();
+  const { colors, themeMode, setThemeMode } = useTheme();
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
@@ -120,26 +122,50 @@ export const ProfileScreen: React.FC = () => {
     router.replace('/login');
   };
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+  const themeOptions: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { mode: 'system', label: 'System', icon: 'phone-portrait-outline' },
+    { mode: 'light', label: 'Light', icon: 'sunny-outline' },
+    { mode: 'dark', label: 'Dark', icon: 'moon-outline' },
+  ];
 
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="My Profile"
         showBack
         onBack={() => router.back()}
+        showThemeToggle
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Math.max(insets.bottom + Spacing.xxl, Spacing.xxxl),
+          },
+        ]}
+      >
         {/* User Avatar Card */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
+          <View
+            style={[
+              styles.avatarCircle,
+              {
+                backgroundColor: colors.primary,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.avatarText, { color: colors.white }]}>
               {(user?.name || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
-          <Text style={styles.userName}>{user?.name || 'User'}</Text>
-          <Text style={styles.userEmail}>{user?.email || 'email@example.com'}</Text>
+          <Text style={[styles.userName, { color: colors.textPrimary }]}>
+            {user?.name || 'User'}
+          </Text>
+          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
+            {user?.email || 'email@example.com'}
+          </Text>
         </View>
 
         {/* Feedback Message */}
@@ -147,9 +173,16 @@ export const ProfileScreen: React.FC = () => {
           <View
             style={[
               styles.feedbackBanner,
-              statusMessage.type === 'success'
-                ? styles.successBanner
-                : styles.errorBanner,
+              {
+                backgroundColor:
+                  statusMessage.type === 'success'
+                    ? colors.successSoft
+                    : colors.dangerSoft,
+                borderColor:
+                  statusMessage.type === 'success'
+                    ? colors.success
+                    : colors.danger,
+              },
             ]}
           >
             <Ionicons
@@ -160,7 +193,7 @@ export const ProfileScreen: React.FC = () => {
               }
               size={20}
               color={
-                statusMessage.type === 'success' ? Colors.success : Colors.danger
+                statusMessage.type === 'success' ? colors.success : colors.danger
               }
             />
             <Text
@@ -169,8 +202,8 @@ export const ProfileScreen: React.FC = () => {
                 {
                   color:
                     statusMessage.type === 'success'
-                      ? '#A7F3D0'
-                      : '#FCA5A5',
+                      ? colors.success
+                      : colors.danger,
                 },
               ]}
             >
@@ -179,10 +212,62 @@ export const ProfileScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Theme / Appearance Selection */}
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+            Appearance
+          </Text>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+            Choose between light, dark, or system default theme
+          </Text>
+
+          <View style={[styles.themePillsRow, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}>
+            {themeOptions.map((item) => {
+              const isSelected = themeMode === item.mode;
+              return (
+                <TouchableOpacity
+                  key={item.mode}
+                  style={[
+                    styles.themePill,
+                    isSelected && [
+                      styles.themePillActive,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.cardBorder,
+                      },
+                    ],
+                  ]}
+                  onPress={() => setThemeMode(item.mode)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={item.icon}
+                    size={18}
+                    color={isSelected ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themePillText,
+                      {
+                        color: isSelected ? colors.primary : colors.textSecondary,
+                        fontWeight: isSelected ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Card>
+
         {/* Profile Details Card */}
-        <Card style={styles.infoCard}>
+        <Card style={styles.sectionCard}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardHeaderTitle}>Account Information</Text>
+            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+              Account Details
+            </Text>
             {!isEditing && (
               <Button
                 title="Edit"
@@ -241,45 +326,49 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.readOnlyList}>
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelRow}>
-                  <Ionicons name="person-outline" size={18} color={Colors.textTertiary} />
-                  <Text style={styles.infoLabel}>Full Name</Text>
+                  <Ionicons name="person-outline" size={18} color={colors.textTertiary} />
+                  <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Full Name</Text>
                 </View>
-                <Text style={styles.infoValue}>{user?.name}</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{user?.name}</Text>
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
 
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelRow}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} />
-                  <Text style={styles.infoLabel}>Email</Text>
+                  <Ionicons name="mail-outline" size={18} color={colors.textTertiary} />
+                  <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Email</Text>
                 </View>
-                <Text style={styles.infoValue}>{user?.email}</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{user?.email}</Text>
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
 
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelRow}>
-                  <Ionicons name="calendar-outline" size={18} color={Colors.textTertiary} />
-                  <Text style={styles.infoLabel}>Member Since</Text>
+                  <Ionicons name="calendar-outline" size={18} color={colors.textTertiary} />
+                  <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Member Since</Text>
                 </View>
-                <Text style={styles.infoValue}>{formatDate(user?.createdAt)}</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+                  {formatDate(user?.createdAt)}
+                </Text>
               </View>
             </View>
           )}
         </Card>
 
         {/* Security & Danger Zone */}
-        <Card style={styles.logoutCard}>
-          <Text style={styles.cardHeaderTitle}>Session</Text>
-          <Text style={styles.logoutNotice}>
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+            Session
+          </Text>
+          <Text style={[styles.logoutNotice, { color: colors.textSecondary }]}>
             Signing out will remove your active session token from this device.
           </Text>
           <Button
             title="Sign Out"
             variant="danger"
-            icon={<Ionicons name="log-out-outline" size={20} color={Colors.white} />}
+            icon={<Ionicons name="log-out-outline" size={20} color={colors.white} />}
             onPress={() => setShowLogoutModal(true)}
             style={styles.logoutButton}
           />
@@ -305,40 +394,34 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollContent: {
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xxxl,
+    paddingTop: Spacing.md,
   },
   avatarSection: {
     alignItems: 'center',
-    marginVertical: Spacing.xl,
+    marginVertical: Spacing.lg,
   },
   avatarCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.primary,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     borderWidth: 3,
-    borderColor: 'rgba(99, 102, 241, 0.4)',
   },
   avatarText: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
-    color: Colors.white,
   },
   userName: {
     fontSize: 22,
     fontWeight: '700',
-    color: Colors.textPrimary,
   },
   userEmail: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginTop: 4,
   },
   feedbackBanner: {
@@ -349,32 +432,52 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     borderWidth: 1,
   },
-  successBanner: {
-    backgroundColor: Colors.successSoft,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  errorBanner: {
-    backgroundColor: Colors.dangerSoft,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
   feedbackText: {
     marginLeft: Spacing.sm,
     fontSize: 14,
     flex: 1,
+    fontWeight: '500',
   },
-  infoCard: {
+  sectionCard: {
     marginBottom: Spacing.lg,
+    padding: Spacing.xl,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   cardHeaderTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: Colors.textPrimary,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: Spacing.md,
+  },
+  themePillsRow: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.lg,
+    padding: 4,
+    borderWidth: 1,
+    gap: 4,
+  },
+  themePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
+    gap: 6,
+  },
+  themePillActive: {
+    borderWidth: 1,
+  },
+  themePillText: {
+    fontSize: 13,
   },
   editButton: {
     height: 36,
@@ -407,25 +510,18 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 13,
-    color: Colors.textTertiary,
     marginLeft: Spacing.xs,
     fontWeight: '500',
   },
   infoValue: {
     fontSize: 16,
-    color: Colors.textPrimary,
     fontWeight: '500',
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.cardBorder,
-  },
-  logoutCard: {
-    marginTop: Spacing.sm,
   },
   logoutNotice: {
     fontSize: 13,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
     marginBottom: Spacing.lg,
     lineHeight: 18,

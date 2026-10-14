@@ -10,10 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../hooks/useTheme';
 import { api } from '../services/api';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
@@ -23,12 +24,15 @@ import { ErrorMessage } from '../components/ErrorMessage';
 import { EmptyState } from '../components/EmptyState';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { Colors, Spacing, BorderRadius } from '../constants/theme';
+import { Spacing, BorderRadius } from '../constants/theme';
 import { Todo } from '../types';
 
 type FilterType = 'all' | 'pending' | 'completed';
 
 export const TodoScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -211,35 +215,38 @@ export const TodoScreen: React.FC = () => {
   const completedCount = todos.filter((t) => t.completed).length;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Todo List"
         subtitle={`${pendingCount} pending, ${completedCount} completed`}
         showBack
         onBack={() => router.back()}
+        showThemeToggle
         rightAction={
           <TouchableOpacity
-            style={styles.addHeaderBtn}
+            style={[styles.addHeaderBtn, { backgroundColor: colors.primary }]}
             onPress={openCreateModal}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={24} color={Colors.white} />
+            <Ionicons name="add" size={24} color={colors.white} />
           </TouchableOpacity>
         }
       />
 
       {/* Filter Tabs */}
-      <View style={styles.filterBar}>
+      <View style={[styles.filterBar, { backgroundColor: colors.background, borderBottomColor: colors.cardBorder }]}>
         <TouchableOpacity
-          style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
+          style={[
+            styles.filterTab,
+            { backgroundColor: activeFilter === 'all' ? colors.primary : colors.cardHover },
+          ]}
           onPress={() => setActiveFilter('all')}
           activeOpacity={0.7}
         >
           <Text
             style={[
               styles.filterTabText,
+              { color: activeFilter === 'all' ? colors.white : colors.textSecondary },
               activeFilter === 'all' && styles.filterTabTextActive,
             ]}
           >
@@ -250,7 +257,7 @@ export const TodoScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            activeFilter === 'pending' && styles.filterTabActive,
+            { backgroundColor: activeFilter === 'pending' ? colors.primary : colors.cardHover },
           ]}
           onPress={() => setActiveFilter('pending')}
           activeOpacity={0.7}
@@ -258,6 +265,7 @@ export const TodoScreen: React.FC = () => {
           <Text
             style={[
               styles.filterTabText,
+              { color: activeFilter === 'pending' ? colors.white : colors.textSecondary },
               activeFilter === 'pending' && styles.filterTabTextActive,
             ]}
           >
@@ -268,7 +276,7 @@ export const TodoScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            activeFilter === 'completed' && styles.filterTabActive,
+            { backgroundColor: activeFilter === 'completed' ? colors.primary : colors.cardHover },
           ]}
           onPress={() => setActiveFilter('completed')}
           activeOpacity={0.7}
@@ -276,6 +284,7 @@ export const TodoScreen: React.FC = () => {
           <Text
             style={[
               styles.filterTabText,
+              { color: activeFilter === 'completed' ? colors.white : colors.textSecondary },
               activeFilter === 'completed' && styles.filterTabTextActive,
             ]}
           >
@@ -296,13 +305,18 @@ export const TodoScreen: React.FC = () => {
         <FlatList
           data={filteredTodos}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              paddingBottom: Math.max(insets.bottom + 90, 110),
+            },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={Colors.primary}
-              colors={[Colors.primary]}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           ListEmptyComponent={
@@ -329,13 +343,14 @@ export const TodoScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[
                     styles.checkbox,
-                    item.completed && styles.checkboxCompleted,
+                    { borderColor: item.completed ? colors.success : colors.textTertiary },
+                    item.completed && { backgroundColor: colors.success },
                   ]}
                   onPress={() => handleToggleCompleted(item)}
                   activeOpacity={0.7}
                 >
                   {item.completed && (
-                    <Ionicons name="checkmark" size={16} color={Colors.white} />
+                    <Ionicons name="checkmark" size={16} color={colors.white} />
                   )}
                 </TouchableOpacity>
 
@@ -344,6 +359,7 @@ export const TodoScreen: React.FC = () => {
                   <Text
                     style={[
                       styles.todoTitle,
+                      { color: item.completed ? colors.textTertiary : colors.textPrimary },
                       item.completed && styles.todoTitleCompleted,
                     ]}
                   >
@@ -354,6 +370,7 @@ export const TodoScreen: React.FC = () => {
                     <Text
                       style={[
                         styles.todoDesc,
+                        { color: item.completed ? colors.textTertiary : colors.textSecondary },
                         item.completed && styles.todoDescCompleted,
                       ]}
                       numberOfLines={2}
@@ -368,9 +385,9 @@ export const TodoScreen: React.FC = () => {
                       <Ionicons
                         name="calendar-outline"
                         size={12}
-                        color={Colors.textTertiary}
+                        color={colors.textTertiary}
                       />
-                      <Text style={styles.dateText}>
+                      <Text style={[styles.dateText, { color: colors.textTertiary }]}>
                         {formatDate(item.createdAt)}
                       </Text>
                     </View>
@@ -378,15 +395,21 @@ export const TodoScreen: React.FC = () => {
                     <View
                       style={[
                         styles.statusPill,
-                        item.completed ? styles.statusDone : styles.statusPending,
+                        {
+                          backgroundColor: item.completed
+                            ? colors.successSoft
+                            : colors.warningSoft,
+                        },
                       ]}
                     >
                       <Text
                         style={[
                           styles.statusText,
-                          item.completed
-                            ? styles.statusTextDone
-                            : styles.statusTextPending,
+                          {
+                            color: item.completed
+                              ? colors.success
+                              : colors.warning,
+                          },
                         ]}
                       >
                         {item.completed ? 'Completed' : 'Pending'}
@@ -398,26 +421,26 @@ export const TodoScreen: React.FC = () => {
                 {/* Actions */}
                 <View style={styles.todoActionsCol}>
                   <TouchableOpacity
-                    style={styles.actionIconBtn}
+                    style={[styles.actionIconBtn, { backgroundColor: colors.cardHover }]}
                     onPress={() => openEditModal(item)}
                     activeOpacity={0.7}
                   >
                     <Ionicons
                       name="pencil-outline"
-                      size={18}
-                      color={Colors.primaryLight}
+                      size={17}
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.actionIconBtn, styles.deleteIconBtn]}
+                    style={[styles.actionIconBtn, { backgroundColor: colors.dangerSoft }]}
                     onPress={() => setDeleteTarget(item)}
                     activeOpacity={0.7}
                   >
                     <Ionicons
                       name="trash-outline"
-                      size={18}
-                      color={Colors.danger}
+                      size={17}
+                      color={colors.danger}
                     />
                   </TouchableOpacity>
                 </View>
@@ -427,13 +450,19 @@ export const TodoScreen: React.FC = () => {
         />
       )}
 
-      {/* Floating Add Action Button */}
+      {/* Floating Add Action Button (SafeArea offset) */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            bottom: Math.max(insets.bottom + 20, 28),
+          },
+        ]}
         onPress={openCreateModal}
         activeOpacity={0.85}
       >
-        <Ionicons name="add" size={28} color={Colors.white} />
+        <Ionicons name="add" size={30} color={colors.white} />
       </TouchableOpacity>
 
       {/* Add / Edit Task Modal */}
@@ -447,16 +476,25 @@ export const TodoScreen: React.FC = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalCard}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                paddingBottom: Math.max(insets.bottom + Spacing.lg, Spacing.xxl),
+              },
+            ]}
+          >
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
                 {editingTodo ? 'Edit Task' : 'New Task'}
               </Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
                 style={styles.modalCloseBtn}
               >
-                <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -522,13 +560,11 @@ export default TodoScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   addHeaderBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -537,24 +573,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
-    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
   },
   filterTab: {
-    paddingVertical: Spacing.xs,
+    paddingVertical: 7,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.round,
-    backgroundColor: Colors.cardBorder,
-  },
-  filterTabActive: {
-    backgroundColor: Colors.primary,
   },
   filterTabText: {
     fontSize: 13,
     fontWeight: '500',
-    color: Colors.textSecondary,
   },
   filterTabTextActive: {
-    color: Colors.white,
     fontWeight: '700',
   },
   errorAlert: {
@@ -564,11 +594,10 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.md,
-    paddingBottom: 100, // accommodate FAB
   },
   todoCard: {
     marginBottom: Spacing.md,
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   todoRow: {
     flexDirection: 'row',
@@ -579,15 +608,10 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.textTertiary,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 2,
     marginRight: Spacing.md,
-  },
-  checkboxCompleted: {
-    backgroundColor: Colors.success,
-    borderColor: Colors.success,
   },
   todoContentCol: {
     flex: 1,
@@ -595,22 +619,18 @@ const styles = StyleSheet.create({
   todoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.textPrimary,
     lineHeight: 22,
   },
   todoTitleCompleted: {
     textDecorationLine: 'line-through',
-    color: Colors.textTertiary,
   },
   todoDesc: {
     fontSize: 13,
-    color: Colors.textSecondary,
     marginTop: 4,
     lineHeight: 18,
   },
   todoDescCompleted: {
     textDecorationLine: 'line-through',
-    color: Colors.textTertiary,
   },
   todoMetaRow: {
     flexDirection: 'row',
@@ -625,71 +645,56 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: Colors.textTertiary,
+    fontWeight: '500',
   },
   statusPill: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.round,
   },
-  statusDone: {
-    backgroundColor: Colors.successSoft,
-  },
-  statusPending: {
-    backgroundColor: Colors.warningSoft,
-  },
   statusText: {
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  statusTextDone: {
-    color: Colors.success,
-  },
-  statusTextPending: {
-    color: Colors.warning,
-  },
   todoActionsCol: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: Spacing.sm,
-    gap: Spacing.xs,
+    gap: 6,
   },
   actionIconBtn: {
-    padding: Spacing.xs,
-  },
-  deleteIconBtn: {
-    marginLeft: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fab: {
     position: 'absolute',
-    right: 24,
-    bottom: 30,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: Colors.primary,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: Colors.primary,
+    elevation: 6,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.xxl,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xxl,
     maxHeight: '85%',
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
   },
   modalHeaderRow: {
     flexDirection: 'row',
@@ -700,7 +705,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.textPrimary,
   },
   modalCloseBtn: {
     padding: Spacing.xs,

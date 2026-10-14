@@ -1,4 +1,36 @@
-export const Colors = {
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+export interface ThemeColors {
+  background: string;
+  card: string;
+  cardHover: string;
+  cardBorder: string;
+  primary: string;
+  primaryDark: string;
+  primaryLight: string;
+  primarySoft: string;
+  accentSky: string;
+  accentPurple: string;
+  success: string;
+  successSoft: string;
+  warning: string;
+  warningSoft: string;
+  danger: string;
+  dangerSoft: string;
+  textPrimary: string;
+  textSecondary: string;
+  textTertiary: string;
+  inputBg: string;
+  inputBorder: string;
+  inputFocusBorder: string;
+  divider: string;
+  white: string;
+  black: string;
+  shadowColor: string;
+  statusBar: 'light' | 'dark';
+}
+
+export const DarkColors: ThemeColors = {
   background: '#0A0F1D',
   card: '#141D32',
   cardHover: '#1A2642',
@@ -24,7 +56,42 @@ export const Colors = {
   divider: '#1E293B',
   white: '#FFFFFF',
   black: '#000000',
+  shadowColor: '#000000',
+  statusBar: 'light',
 };
+
+export const LightColors: ThemeColors = {
+  background: '#F8FAFC',
+  card: '#FFFFFF',
+  cardHover: '#F1F5F9',
+  cardBorder: '#E2E8F0',
+  primary: '#4F46E5',
+  primaryDark: '#4338CA',
+  primaryLight: '#6366F1',
+  primarySoft: 'rgba(79, 70, 229, 0.1)',
+  accentSky: '#0284C7',
+  accentPurple: '#9333EA',
+  success: '#059669',
+  successSoft: 'rgba(5, 150, 105, 0.12)',
+  warning: '#D97706',
+  warningSoft: 'rgba(217, 119, 6, 0.12)',
+  danger: '#DC2626',
+  dangerSoft: 'rgba(220, 38, 38, 0.12)',
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#94A3B8',
+  inputBg: '#FFFFFF',
+  inputBorder: '#CBD5E1',
+  inputFocusBorder: '#4F46E5',
+  divider: '#E2E8F0',
+  white: '#FFFFFF',
+  black: '#000000',
+  shadowColor: 'rgba(15, 23, 42, 0.08)',
+  statusBar: 'dark',
+};
+
+// Default export for backward compatibility
+export const Colors = DarkColors;
 
 export const Spacing = {
   xs: 4,
@@ -38,50 +105,45 @@ export const Spacing = {
 };
 
 export const BorderRadius = {
+  xs: 6,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
+  xxl: 24,
   round: 9999,
 };
 
 export const Typography = {
   title: {
     fontSize: 28,
-    fontWeight: '700' as const,
-    color: Colors.textPrimary,
+    fontWeight: '800' as const,
     letterSpacing: -0.5,
   },
   header: {
     fontSize: 22,
     fontWeight: '700' as const,
-    color: Colors.textPrimary,
     letterSpacing: -0.3,
   },
   subheader: {
     fontSize: 18,
     fontWeight: '600' as const,
-    color: Colors.textPrimary,
   },
   body: {
     fontSize: 15,
     fontWeight: '400' as const,
-    color: Colors.textSecondary,
     lineHeight: 22,
   },
   bodyBold: {
     fontSize: 15,
     fontWeight: '600' as const,
-    color: Colors.textPrimary,
   },
   caption: {
     fontSize: 13,
     fontWeight: '400' as const,
-    color: Colors.textTertiary,
   },
   small: {
     fontSize: 12,
     fontWeight: '500' as const,
-    color: Colors.textSecondary,
   },
 };

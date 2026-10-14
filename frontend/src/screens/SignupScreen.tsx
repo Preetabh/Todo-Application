@@ -7,18 +7,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { Card } from '../components/Card';
 import { ErrorMessage } from '../components/ErrorMessage';
-import { Colors, Spacing, BorderRadius } from '../constants/theme';
+import { Spacing, BorderRadius } from '../constants/theme';
 
 export const SignupScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { register } = useAuth();
+  const { colors, isDark, toggleTheme } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -92,7 +96,6 @@ export const SignupScreen: React.FC = () => {
       });
 
       if (result.success) {
-        // Navigate directly to Home dashboard upon successful signup
         router.replace('/home');
       } else {
         setErrorMessage(result.message || 'Registration failed. Please try again.');
@@ -106,23 +109,65 @@ export const SignupScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardView}
+      style={[styles.keyboardView, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      {/* Top Header with Back & Theme Toggle */}
+      <View
+        style={[
+          styles.topHeader,
+          { paddingTop: Math.max(insets.top + Spacing.sm, Spacing.lg) },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.themeToggleBtn, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}
+          onPress={toggleTheme}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={isDark ? 'sunny-outline' : 'moon-outline'}
+            size={20}
+            color={isDark ? '#FBBF24' : colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Math.max(insets.bottom + Spacing.xl, Spacing.xxxl),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerSection}>
-          <View style={styles.logoBadge}>
-            <Ionicons name="person-add" size={32} color={Colors.primaryLight} />
+          <View
+            style={[
+              styles.logoBadge,
+              {
+                backgroundColor: colors.primarySoft,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Ionicons name="person-add" size={32} color={colors.primary} />
           </View>
-          <Text style={styles.appTitle}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to start organizing your tasks</Text>
+          <Text style={[styles.appTitle, { color: colors.textPrimary }]}>Create Account</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Sign up to start organizing your tasks
+          </Text>
         </View>
 
-        <View style={styles.formCard}>
+        <Card style={styles.formCard}>
           <ErrorMessage
             message={errorMessage}
             onDismiss={() => setErrorMessage(null)}
@@ -188,15 +233,17 @@ export const SignupScreen: React.FC = () => {
             loading={loading}
             style={styles.signupButton}
           />
-        </View>
+        </Card>
 
         <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Already have an account?</Text>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            Already have an account?
+          </Text>
           <TouchableOpacity
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Text style={styles.loginLink}> Sign In</Text>
+            <Text style={[styles.loginLink, { color: colors.primary }]}> Sign In</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -209,62 +256,76 @@ export default SignupScreen;
 const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
-    backgroundColor: Colors.background,
+  },
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.sm,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  themeToggleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.xxxl,
+    paddingTop: Spacing.sm,
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   logoBadge: {
     width: 64,
     height: 64,
     borderRadius: 20,
-    backgroundColor: Colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   appTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: Colors.textPrimary,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
+    fontWeight: '500',
   },
   formCard: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    padding: Spacing.xl,
   },
   signupButton: {
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.xxl,
+    marginTop: Spacing.xl,
   },
   footerText: {
-    color: Colors.textSecondary,
     fontSize: 14,
   },
   loginLink: {
-    color: Colors.primaryLight,
     fontWeight: '700',
     fontSize: 14,
   },

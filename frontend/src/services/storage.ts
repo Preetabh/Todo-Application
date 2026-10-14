@@ -97,6 +97,35 @@ export const storage = {
     }
   },
 
+  async getTheme(): Promise<string | null> {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          return window.localStorage.getItem('app_theme');
+        }
+        return null;
+      }
+      return await SecureStore.getItemAsync('app_theme');
+    } catch (error) {
+      console.warn('Storage getTheme error:', error);
+      return null;
+    }
+  },
+
+  async setTheme(theme: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('app_theme', theme);
+        }
+      } else {
+        await SecureStore.setItemAsync('app_theme', theme);
+      }
+    } catch (error) {
+      console.warn('Storage setTheme error:', error);
+    }
+  },
+
   async clearAll(): Promise<void> {
     await this.removeToken();
     await this.removeUser();

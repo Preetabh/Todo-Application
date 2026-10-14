@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, BorderRadius, Spacing } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { BorderRadius, Spacing } from '../constants/theme';
 
 interface ErrorMessageProps {
   message: string | null;
@@ -14,20 +15,33 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   onDismiss,
   style,
 }) => {
+  const { colors, isDark } = useTheme();
+
   if (!message) return null;
 
   return (
-    <View style={[styles.container, style]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.dangerSoft,
+          borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(220, 38, 38, 0.25)',
+        },
+        style,
+      ]}
+    >
       <Ionicons
         name="alert-circle-outline"
         size={20}
-        color={Colors.danger}
+        color={colors.danger}
         style={styles.icon}
       />
-      <Text style={styles.text}>{message}</Text>
+      <Text style={[styles.text, { color: isDark ? '#FCA5A5' : '#B91C1C' }]}>
+        {message}
+      </Text>
       {onDismiss && (
         <TouchableOpacity onPress={onDismiss} style={styles.closeBtn}>
-          <Ionicons name="close" size={18} color={Colors.textSecondary} />
+          <Ionicons name="close" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
       )}
     </View>
@@ -38,9 +52,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.dangerSoft,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
@@ -51,9 +63,9 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-    color: '#FCA5A5',
     fontSize: 14,
     lineHeight: 18,
+    fontWeight: '500',
   },
   closeBtn: {
     padding: 4,

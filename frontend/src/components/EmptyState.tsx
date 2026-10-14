@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { Spacing } from '../constants/theme';
 import { Button } from './Button';
 
 interface EmptyStateProps {
@@ -21,13 +22,19 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
   style,
 }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.iconCircle}>
-        <Ionicons name={icon} size={36} color={Colors.primaryLight} />
+      <View style={[styles.iconCircle, { backgroundColor: colors.primarySoft }]}>
+        <Ionicons name={icon} size={36} color={colors.primary} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {description && <Text style={styles.description}>{description}</Text>}
+      <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+      {description && (
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
+          {description}
+        </Text>
+      )}
       {actionTitle && onAction && (
         <Button
           title={actionTitle}
@@ -50,21 +57,18 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
-    color: Colors.textPrimary,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: Spacing.xs,
   },
   description: {
     fontSize: 14,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.lg,

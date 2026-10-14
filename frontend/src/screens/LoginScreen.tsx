@@ -7,18 +7,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { Card } from '../components/Card';
 import { ErrorMessage } from '../components/ErrorMessage';
-import { Colors, Spacing, BorderRadius } from '../constants/theme';
+import { Spacing, BorderRadius } from '../constants/theme';
 
 export const LoginScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const { colors, isDark, toggleTheme } = useTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,23 +85,57 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardView}
+      style={[styles.keyboardView, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      {/* Top Bar with Theme Toggle */}
+      <View
+        style={[
+          styles.themeToggleHeader,
+          { paddingTop: Math.max(insets.top + Spacing.sm, Spacing.lg) },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.themeToggleBtn, { backgroundColor: colors.cardHover, borderColor: colors.cardBorder }]}
+          onPress={toggleTheme}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={isDark ? 'sunny-outline' : 'moon-outline'}
+            size={20}
+            color={isDark ? '#FBBF24' : colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Math.max(insets.bottom + Spacing.xl, Spacing.xxxl),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerSection}>
-          <View style={styles.logoBadge}>
-            <Ionicons name="checkbox" size={38} color={Colors.primaryLight} />
+          <View
+            style={[
+              styles.logoBadge,
+              {
+                backgroundColor: colors.primarySoft,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Ionicons name="checkbox" size={38} color={colors.primary} />
           </View>
-          <Text style={styles.appTitle}>MyFirstApp</Text>
-          <Text style={styles.subtitle}>Welcome back! Sign in to continue</Text>
+          <Text style={[styles.appTitle, { color: colors.textPrimary }]}>DigentTech</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Welcome back! Sign in to continue
+          </Text>
         </View>
 
-        <View style={styles.formCard}>
+        <Card style={styles.formCard}>
           <ErrorMessage
             message={errorMessage}
             onDismiss={() => setErrorMessage(null)}
@@ -137,15 +175,17 @@ export const LoginScreen: React.FC = () => {
             loading={loading}
             style={styles.loginButton}
           />
-        </View>
+        </Card>
 
         <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Don't have an account?</Text>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            Don't have an account?
+          </Text>
           <TouchableOpacity
             onPress={() => router.push('/signup')}
             activeOpacity={0.7}
           >
-            <Text style={styles.signupLink}> Create Account</Text>
+            <Text style={[styles.signupLink, { color: colors.primary }]}> Create Account</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -158,62 +198,66 @@ export default LoginScreen;
 const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
-    backgroundColor: Colors.background,
+  },
+  themeToggleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.xl,
+  },
+  themeToggleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.xxxl,
+    paddingTop: Spacing.md,
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   logoBadge: {
     width: 72,
     height: 72,
     borderRadius: 24,
-    backgroundColor: Colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   appTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: Colors.textPrimary,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
+    fontWeight: '500',
   },
   formCard: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    padding: Spacing.xl,
   },
   loginButton: {
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.xxl,
+    marginTop: Spacing.xl,
   },
   footerText: {
-    color: Colors.textSecondary,
     fontSize: 14,
   },
   signupLink: {
-    color: Colors.primaryLight,
     fontWeight: '700',
     fontSize: 14,
   },

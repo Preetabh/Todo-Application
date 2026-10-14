@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle, TouchableOpacity } from 'react-native';
-import { Colors, BorderRadius, Spacing } from '../constants/theme';
+import { View, StyleSheet, StyleProp, ViewStyle, TouchableOpacity, Platform } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
+import { BorderRadius, Spacing } from '../constants/theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -15,48 +16,63 @@ export const Card: React.FC<CardProps> = ({
   onPress,
   variant = 'default',
 }) => {
-  const getVariantStyle = () => {
+  const { colors, isDark } = useTheme();
+
+  const getVariantStyles = (): ViewStyle => {
     switch (variant) {
       case 'highlight':
-        return styles.highlight;
+        return {
+          backgroundColor: colors.cardHover,
+          borderColor: colors.primary,
+        };
       case 'outlined':
-        return styles.outlined;
+        return {
+          backgroundColor: 'transparent',
+          borderColor: colors.cardBorder,
+        };
       case 'default':
       default:
-        return styles.default;
+        return {
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+        };
     }
   };
+
+  const shadowStyles: ViewStyle = isDark
+    ? {}
+    : {
+        shadowColor: colors.shadowColor,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+      };
 
   if (onPress) {
     return (
       <TouchableOpacity
-        style={[styles.card, getVariantStyle(), style]}
+        style={[styles.card, getVariantStyles(), shadowStyles, style]}
         onPress={onPress}
-        activeOpacity={0.8}
+        activeOpacity={0.75}
       >
         {children}
       </TouchableOpacity>
     );
   }
 
-  return <View style={[styles.card, getVariantStyle(), style]}>{children}</View>;
+  return (
+    <View style={[styles.card, getVariantStyles(), shadowStyles, style]}>
+      {children}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  default: {},
-  highlight: {
-    backgroundColor: '#182440',
-    borderColor: Colors.primary,
-  },
-  outlined: {
-    backgroundColor: 'transparent',
-    borderColor: Colors.cardBorder,
+    overflow: 'hidden',
   },
 });
