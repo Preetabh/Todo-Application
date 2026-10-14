@@ -27,7 +27,7 @@ export interface ApiResponse<T = any> {
   message?: string;
   data?: T;
   count?: number;
-  stats?: TodoStats;
+  stats?: TodoStats | PasswordStats | any;
   token?: string;
   user?: User;
 }
@@ -82,3 +82,55 @@ export interface UpdateCheckResult {
   releaseDate?: string;
   fileSizeBytes?: number | null;
 }
+
+export type PasswordCategory =
+  | 'login'
+  | 'card'
+  | 'finance'
+  | 'social'
+  | 'work'
+  | 'other';
+
+export interface PasswordItem {
+  _id: string;
+  user: string;
+  title: string;
+  username: string;
+  password?: string;
+  website?: string;
+  category: PasswordCategory;
+  notes?: string;
+  isFavorite: boolean;
+  strength?: {
+    score: number;
+    label: 'Weak' | 'Medium' | 'Strong' | 'Very Strong';
+  };
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreatePasswordData {
+  title: string;
+  username?: string;
+  password: string;
+  website?: string;
+  category?: PasswordCategory;
+  notes?: string;
+  isFavorite?: boolean;
+}
+
+export interface UpdatePasswordData {
+  title?: string;
+  username?: string;
+  password?: string;
+  website?: string;
+  category?: PasswordCategory;
+  notes?: string;
+  isFavorite?: boolean;
+}
+
+export interface PasswordStats {
+  total: number;
+  favorites: number;
+}
+

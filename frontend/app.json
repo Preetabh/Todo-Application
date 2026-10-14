@@ -4,7 +4,7 @@
     "slug": "DigentTech",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/icon-square.png",
     "scheme": "myfirstapp",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -25,7 +25,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/icon-square.png"
     },
     "plugins": [
       "expo-router",

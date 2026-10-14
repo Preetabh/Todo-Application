@@ -502,3 +502,29 @@ APP_FORCE_UPDATE=false
 | Adding Android permissions (e.g. in `app.json`) | ❌ No | ✅ **Yes** |
 | Changing app name, icon, splash screen | ❌ No | ✅ **Yes** |
 | Updating Expo SDK version (e.g. SDK 57 -> 58) | ❌ No | ✅ **Yes** |
+
+---
+
+## 17. Encrypted Password Manager & Vault System
+
+The application features a secure, full-stack **Password Manager & Credential Vault** alongside task management.
+
+### Key Capabilities:
+- **AES-256-GCM Authenticated Encryption**: All credentials are encrypted on the backend before being written to MongoDB Atlas. Each record uses a unique, cryptographically random 12-byte Initialization Vector (IV) and a GCM authentication tag for tamper resistance. Plaintext passwords are never stored in the database.
+- **Built-in Strong Password Generator**: Automatically generates cryptographically randomized 16+ character passwords combining uppercase, lowercase, numbers, and symbols.
+- **Dynamic Password Strength Meter**: Evaluates entropy in real-time with visual indicators (`Weak`, `Medium`, `Strong`, `Very Strong`).
+- **One-Touch Clipboard Copy**: Securely copy usernames and passwords to the device clipboard using `expo-clipboard` with automatic feedback toasts.
+- **Category Organization**: Categorize accounts into **Logins**, **Finance**, **Social**, **Work**, **Cards**, or **Other** with distinct color-coded badge indicators.
+- **Search & Pinned Favorites**: Instantly search accounts by name, username, or website, or filter by pinned favorites.
+- **Masked Password Field**: Keep credentials shielded (`••••••••••••`) with one-tap show/hide toggle.
+- **Website Launcher**: Launch saved web login URLs directly into your browser with one tap.
+
+### REST API Endpoints:
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|:---:|
+| `GET` | `/api/passwords` | Get all credentials (with optional `?category=`, `?search=`, `?favorite=`) | ✅ Bearer JWT |
+| `POST` | `/api/passwords` | Encrypt and store new credential | ✅ Bearer JWT |
+| `GET` | `/api/passwords/:id` | Get single decrypted credential by ID | ✅ Bearer JWT |
+| `PATCH` | `/api/passwords/:id` | Update credential details or re-encrypt password | ✅ Bearer JWT |
+| `DELETE` | `/api/passwords/:id` | Permanently remove credential from vault | ✅ Bearer JWT |
+

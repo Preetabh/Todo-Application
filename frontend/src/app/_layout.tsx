@@ -29,6 +29,7 @@ function AppNavigation() {
         <Stack.Screen name="home" options={{ animation: 'fade' }} />
         <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="todo" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="passwords" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </>
   );

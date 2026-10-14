@@ -10,6 +10,10 @@ import {
   Todo,
   User,
   AppVersionInfo,
+  PasswordItem,
+  CreatePasswordData,
+  UpdatePasswordData,
+  PasswordStats,
 } from '../types';
 
 /**
@@ -186,9 +190,54 @@ export const api = {
   // App Version & In-App Update
   version: {
     check: async () => {
-      return request<AppVersionInfo>('/app-version', {
+      return request<AppVersionInfo>(
+        '/app-version',
+        {
+          method: 'GET',
+        },
+        10000
+      );
+    },
+  },
+
+  // Password Vault Endpoints
+  passwords: {
+    getAll: async (category?: string, search?: string, favorite?: boolean) => {
+      const params = new URLSearchParams();
+      if (category && category !== 'all') params.append('category', category);
+      if (search && search.trim()) params.append('search', search.trim());
+      if (favorite !== undefined) params.append('favorite', String(favorite));
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      return request<PasswordItem[]>(`/passwords${queryString}`, {
         method: 'GET',
-      }, 10000);
+      });
+    },
+
+    getById: async (id: string) => {
+      return request<PasswordItem>(`/passwords/${id}`, {
+        method: 'GET',
+      });
+    },
+
+    create: async (data: CreatePasswordData) => {
+      return request<PasswordItem>('/passwords', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    update: async (id: string, data: UpdatePasswordData) => {
+      return request<PasswordItem>(`/passwords/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+
+    delete: async (id: string) => {
+      return request<{ id: string }>(`/passwords/${id}`, {
+        method: 'DELETE',
+      });
     },
   },
 };
