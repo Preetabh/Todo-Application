@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { AuthProvider } from '../context/AuthContext';
+import { UpdateProvider } from '../context/UpdateContext';
 
 // Keep splash screen visible until initial bootstrap completes
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -46,7 +47,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AppNavigation />
+          <UpdateProvider>
+            <AppNavigation />
+          </UpdateProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

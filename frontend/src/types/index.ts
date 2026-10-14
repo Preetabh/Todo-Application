@@ -60,3 +60,25 @@ export interface UpdateTodoData {
   description?: string;
   completed?: boolean;
 }
+
+export interface AppVersionInfo {
+  latestVersion: string;
+  minimumVersion: string;
+  apkUrl: string;
+  updateMessage?: string;
+  forceUpdate?: boolean;
+  releaseDate?: string;
+  fileSizeBytes?: number | null;
+}
+
+export interface UpdateCheckResult {
+  hasUpdate: boolean;
+  isForced: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  minimumVersion: string;
+  apkUrl: string;
+  updateMessage?: string;
+  releaseDate?: string;
+  fileSizeBytes?: number | null;
+}

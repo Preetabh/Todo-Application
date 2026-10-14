@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const todoRoutes = require('./routes/todo.routes');
+const versionRoutes = require('./routes/version.routes');
 const { notFound, errorHandler } = require('./middleware/error.middleware');
 
 const app = express();
@@ -71,6 +72,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/todos', todoRoutes);
+app.use('/api/app-version', versionRoutes);
 
 // Catch-all 404 handler
 app.use(notFound);

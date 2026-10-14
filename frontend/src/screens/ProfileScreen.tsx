@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 import { api } from '../services/api';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
@@ -33,6 +34,31 @@ export const ProfileScreen: React.FC = () => {
   const [nameError, setNameError] = useState<string | undefined>();
   const [emailError, setEmailError] = useState<string | undefined>();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // In-App APK Update System
+  const { currentVersion, isChecking, checkForUpdates } = useAppUpdate();
+  const [updateFeedback, setUpdateFeedback] = useState<{
+    type: 'success' | 'info' | 'error';
+    text: string;
+  } | null>(null);
+
+  const handleManualCheck = async () => {
+    setUpdateFeedback(null);
+    try {
+      const res = await checkForUpdates(true);
+      if (res && !res.hasUpdate) {
+        setUpdateFeedback({
+          type: 'success',
+          text: `You're up to date! Version ${res.currentVersion} is the latest release.`,
+        });
+      }
+    } catch (err: any) {
+      setUpdateFeedback({
+        type: 'error',
+        text: err.message || 'Unable to check for updates right now.',
+      });
+    }
+  };
 
   // Format joined date
   const formatDate = (dateString?: string) => {
@@ -357,6 +383,104 @@ export const ProfileScreen: React.FC = () => {
           )}
         </Card>
 
+        {/* App Version & Updates Card */}
+        <Card style={styles.sectionCard}>
+          <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
+            App Information
+          </Text>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+            Direct APK updates without Google Play Store
+          </Text>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoLabelRow}>
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color={colors.textTertiary}
+              />
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>
+                Installed Version
+              </Text>
+            </View>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+              v{currentVersion}
+            </Text>
+          </View>
+
+          {updateFeedback && (
+            <View
+              style={[
+                styles.feedbackBanner,
+                {
+                  backgroundColor:
+                    updateFeedback.type === 'success'
+                      ? colors.successSoft
+                      : updateFeedback.type === 'info'
+                      ? colors.primarySoft
+                      : colors.dangerSoft,
+                  borderColor:
+                    updateFeedback.type === 'success'
+                      ? colors.success
+                      : updateFeedback.type === 'info'
+                      ? colors.primary
+                      : colors.danger,
+                  marginTop: Spacing.sm,
+                  marginBottom: Spacing.md,
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  updateFeedback.type === 'success'
+                    ? 'checkmark-circle-outline'
+                    : updateFeedback.type === 'info'
+                    ? 'information-circle-outline'
+                    : 'alert-circle-outline'
+                }
+                size={18}
+                color={
+                  updateFeedback.type === 'success'
+                    ? colors.success
+                    : updateFeedback.type === 'info'
+                    ? colors.primary
+                    : colors.danger
+                }
+              />
+              <Text
+                style={[
+                  styles.feedbackText,
+                  {
+                    color:
+                      updateFeedback.type === 'success'
+                        ? colors.success
+                        : updateFeedback.type === 'info'
+                        ? colors.primary
+                        : colors.danger,
+                  },
+                ]}
+              >
+                {updateFeedback.text}
+              </Text>
+            </View>
+          )}
+
+          <Button
+            title="Check for Updates"
+            variant="secondary"
+            loading={isChecking}
+            icon={
+              <Ionicons
+                name="refresh-outline"
+                size={18}
+                color={colors.textPrimary}
+              />
+            }
+            onPress={handleManualCheck}
+            style={styles.updateCheckBtn}
+          />
+        </Card>
+
         {/* Security & Danger Zone */}
         <Card style={styles.sectionCard}>
           <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>
@@ -528,5 +652,9 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     height: 48,
+  },
+  updateCheckBtn: {
+    marginTop: Spacing.sm,
+    height: 44,
   },
 });

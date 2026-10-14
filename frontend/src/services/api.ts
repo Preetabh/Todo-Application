@@ -9,6 +9,7 @@ import {
   UpdateTodoData,
   Todo,
   User,
+  AppVersionInfo,
 } from '../types';
 
 /**
@@ -179,6 +180,15 @@ export const api = {
       return request<{ id: string }>(`/todos/${id}`, {
         method: 'DELETE',
       });
+    },
+  },
+
+  // App Version & In-App Update
+  version: {
+    check: async () => {
+      return request<AppVersionInfo>('/app-version', {
+        method: 'GET',
+      }, 10000);
     },
   },
 };

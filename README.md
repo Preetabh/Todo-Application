@@ -430,3 +430,75 @@ The `frontend/eas.json` file is pre-configured with a preview profile for direct
 | `expo-secure-store` session error | Stale encrypted keystore | Clear app data in Android Settings > Apps > MyFirstApp > Storage > Clear Data. |
 | Metro bundler caching issues | Stale JavaScript cache | Restart Metro bundler with cache reset: `npx expo start -c`. |
 | APK build asks for credentials | First EAS run on account | Follow EAS interactive prompt to let Expo automatically generate the Android keystore. |
+
+---
+
+## 16. Android In-App APK Update System & Release Workflow
+
+The application includes an in-app APK update system designed specifically for **direct distribution outside the Google Play Store**.
+
+### How It Works:
+1. **Startup & Periodic Check**: When the app launches, returns to the foreground, or every 30 minutes, it queries `GET /api/app-version`.
+2. **Version Evaluation**: Compares the running native version against `latestVersion` and `minimumVersion` using semantic versioning.
+3. **Session Intelligence**: If an update is optional and the user taps **"Later"**, the popup is suppressed for the rest of that app session so users are not badgered. If `forceUpdate: true` (or current version < `minimumVersion`), the update cannot be dismissed.
+4. **Resumable Download**: Downloads the signed APK via `expo-file-system` to an app-isolated cache directory with live progress tracking (`%` and `MB`).
+5. **Android Package Installer**: Converts the local file to an Android `content://` URI with `FLAG_GRANT_READ_URI_PERMISSION` and initiates the native Android package installer intent (`application/vnd.android.package-archive`).
+6. **Permissions & Fallbacks**: If the device requires "Install Unknown Apps" permission, guides the user directly to the app's settings or offers direct browser download.
+
+---
+
+### Step-by-Step Release Workflow for Future Updates
+
+#### Step 1: Bump Application Version
+In `frontend/app.json`, bump the `version` field (and increment `android.versionCode` if desired):
+```json
+{
+  "expo": {
+    "version": "1.1.0",
+    "android": {
+      "versionCode": 2
+    }
+  }
+}
+```
+
+#### Step 2: Build a New Signed APK with EAS
+Run from the `frontend/` directory:
+```bash
+cd frontend
+npx eas-cli build --platform android --profile preview
+```
+*Note: EAS automatically signs the new APK with your project's preserved Android Keystore (`com.digenttech.DigentTech`), guaranteeing seamless in-place upgrades over existing installations without signature conflicts.*
+
+#### Step 3: Host the APK on Trusted HTTPS Storage
+Once the EAS build completes:
+- You can directly use the generated HTTPS artifact URL (e.g. `https://expo.dev/artifacts/eas/...apk`).
+- Or download the APK and upload it to your own HTTPS hosting:
+  - **GitHub Releases**: e.g., `https://github.com/Preetabh/Todo-Application/releases/download/v1.1.0/DigentTech-v1.1.0.apk`
+  - **AWS S3 / Cloudflare R2 / DigitalOcean Spaces**: With public HTTPS read permissions.
+  - **Render / Static Web Server**: e.g., `https://your-domain.com/downloads/DigentTech.apk`
+
+#### Step 4: Update the Version Endpoint
+Update the environment variables on your backend (e.g., in the Render Dashboard under **Environment**):
+```env
+APP_LATEST_VERSION=1.1.0
+APP_MINIMUM_VERSION=1.0.0
+APP_APK_URL=https://your-domain.com/downloads/DigentTech-v1.1.0.apk
+APP_UPDATE_MESSAGE=What's new in v1.1.0:\n• Performance improvements\n• Bug fixes
+APP_FORCE_UPDATE=false
+```
+*No backend rebuild is required! The new version information is served immediately to all active devices.*
+
+---
+
+### When to Use EAS Update vs Building a New APK
+
+| Change Type | Use EAS Update (OTA) | Build New APK Required? |
+|---|:---:|:---:|
+| JavaScript logic / Bug fixes | ✅ Yes | ❌ No |
+| React UI styling & Layout adjustments | ✅ Yes | ❌ No |
+| New text, translations, or static assets | ✅ Yes | ❌ No |
+| Adding new native libraries (with native code) | ❌ No | ✅ **Yes** |
+| Adding Android permissions (e.g. in `app.json`) | ❌ No | ✅ **Yes** |
+| Changing app name, icon, splash screen | ❌ No | ✅ **Yes** |
+| Updating Expo SDK version (e.g. SDK 57 -> 58) | ❌ No | ✅ **Yes** |
