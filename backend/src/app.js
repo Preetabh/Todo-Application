@@ -55,6 +55,15 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
+
+// health check
+app.get('/health', (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "API is running",
+  })
+})
+
 // Body parsers
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
