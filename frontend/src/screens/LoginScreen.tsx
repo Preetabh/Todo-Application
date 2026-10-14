@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -122,16 +123,20 @@ export const LoginScreen: React.FC = () => {
             style={[
               styles.logoBadge,
               {
-                backgroundColor: colors.primarySoft,
-                borderColor: colors.cardBorder,
+                backgroundColor: isDark ? 'rgba(32, 138, 239, 0.15)' : '#E6F4FE',
+                borderColor: isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(32, 138, 239, 0.25)',
               },
             ]}
           >
-            <Ionicons name="checkbox" size={38} color={colors.primary} />
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={{ width: 44, height: 44 }}
+              resizeMode="contain"
+            />
           </View>
           <Text style={[styles.appTitle, { color: colors.textPrimary }]}>DigentTech</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Welcome back! Sign in to continue
+            Secure Vault & Task Management
           </Text>
         </View>
 
