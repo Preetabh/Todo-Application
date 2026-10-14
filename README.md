@@ -430,4 +430,3 @@ The `frontend/eas.json` file is pre-configured with a preview profile for direct
 | `expo-secure-store` session error | Stale encrypted keystore | Clear app data in Android Settings > Apps > MyFirstApp > Storage > Clear Data. |
 | Metro bundler caching issues | Stale JavaScript cache | Restart Metro bundler with cache reset: `npx expo start -c`. |
 | APK build asks for credentials | First EAS run on account | Follow EAS interactive prompt to let Expo automatically generate the Android keystore. |
-# Todo-Application
