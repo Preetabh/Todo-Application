@@ -21,11 +21,13 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Create user
+    // Create user - strictly enforce 'user' role to prevent privilege escalation
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password,
+      role: 'user',
+      mustChangePassword: false,
     });
 
     // Generate JWT token
@@ -39,6 +41,7 @@ const register = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
         createdAt: user.createdAt,
       },
     });
@@ -88,6 +91,8 @@ const login = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
         createdAt: user.createdAt,
       },
     });
@@ -109,6 +114,8 @@ const getMe = async (req, res, next) => {
         id: req.user._id,
         name: req.user.name,
         email: req.user.email,
+        role: req.user.role,
+        mustChangePassword: req.user.mustChangePassword,
         createdAt: req.user.createdAt,
         updatedAt: req.user.updatedAt,
       },

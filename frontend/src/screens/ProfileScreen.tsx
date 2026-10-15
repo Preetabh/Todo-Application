@@ -25,6 +25,8 @@ import { Input } from '../components/Input';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Spacing, BorderRadius, ThemeMode } from '../constants/theme';
 import { DocumentStats, PasswordStats, TodoStats } from '../types';
+import { registerForPushNotificationsAsync } from '../services/pushNotification';
+import { storage } from '../services/storage';
 
 export const ProfileScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -69,6 +71,23 @@ export const ProfileScreen: React.FC = () => {
     type: 'success' | 'info' | 'error';
     text: string;
   } | null>(null);
+
+  // Push Notification State
+  const [pushStatus, setPushStatus] = useState<string>('Checking...');
+  const [pushTokenVal, setPushTokenVal] = useState<string | null>(null);
+  const [isSyncingPush, setIsSyncingPush] = useState<boolean>(false);
+  const [pushFeedback, setPushFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    storage.getPushToken().then((token) => {
+      if (token) {
+        setPushTokenVal(token);
+        setPushStatus('Active & Registered');
+      } else {
+        setPushStatus('Not Configured');
+      }
+    });
+  }, []);
 
   useEffect(() => {
     // Load overview stats for the profile dashboard
@@ -930,6 +949,105 @@ export const ProfileScreen: React.FC = () => {
               />
             }
             onPress={handleManualCheck}
+            style={styles.updateCheckBtn}
+          />
+        </Card>
+
+        {/* Push Notifications Configuration */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionCardHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Ionicons
+                name="notifications-outline"
+                size={20}
+                color={colors.primary}
+              />
+              <Text
+                style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}
+              >
+                Push Notifications
+              </Text>
+            </View>
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 12,
+                backgroundColor:
+                  pushTokenVal ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: pushTokenVal ? '#10B981' : '#EF4444',
+                }}
+              >
+                {pushStatus}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+            DIGENT TECH push delivery allows you to receive instant announcements, task reminders, and security notices.
+          </Text>
+
+          {pushFeedback && (
+            <View
+              style={[
+                styles.feedbackBanner,
+                {
+                  backgroundColor: pushTokenVal
+                    ? 'rgba(16, 185, 129, 0.1)'
+                    : 'rgba(239, 68, 68, 0.1)',
+                  borderColor: pushTokenVal
+                    ? 'rgba(16, 185, 129, 0.3)'
+                    : 'rgba(239, 68, 68, 0.3)',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.feedbackText,
+                  { color: pushTokenVal ? '#10B981' : colors.danger },
+                ]}
+              >
+                {pushFeedback}
+              </Text>
+            </View>
+          )}
+
+          <Button
+            title="Sync & Register Device Push Token"
+            variant="secondary"
+            loading={isSyncingPush}
+            icon={
+              <Ionicons
+                name="cloud-upload-outline"
+                size={18}
+                color={colors.textPrimary}
+              />
+            }
+            onPress={async () => {
+              setIsSyncingPush(true);
+              setPushFeedback(null);
+              try {
+                const token = await registerForPushNotificationsAsync();
+                if (token) {
+                  setPushTokenVal(token);
+                  setPushStatus('Active & Registered');
+                  setPushFeedback('Push token registered successfully with backend!');
+                } else {
+                  setPushStatus('Not Configured');
+                  setPushFeedback('Push permission denied or running in simulator without hardware push support.');
+                }
+              } catch (err: any) {
+                setPushFeedback(err.message || 'Push sync failed.');
+              } finally {
+                setIsSyncingPush(false);
+              }
+            }}
             style={styles.updateCheckBtn}
           />
         </Card>

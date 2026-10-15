@@ -235,4 +235,38 @@ export const api = {
       });
     },
   },
+
+  // Push Notification Endpoints
+  push: {
+    register: async (payload: {
+      expoPushToken: string;
+      platform: string;
+      deviceId?: string | null;
+      deviceName?: string | null;
+      appVersion?: string | null;
+      permissionStatus?: string;
+    }) => {
+      return request<{ id: string; expoPushToken: string; platform: string; isActive: boolean }>(
+        '/push/register',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      );
+    },
+
+    unregister: async (expoPushToken?: string) => {
+      return request<{ success: boolean }>('/push/unregister', {
+        method: 'DELETE',
+        body: JSON.stringify({ expoPushToken }),
+      });
+    },
+
+    getStatus: async () => {
+      return request<any[]>('/push/status', {
+        method: 'GET',
+      });
+    },
+  },
 };
+

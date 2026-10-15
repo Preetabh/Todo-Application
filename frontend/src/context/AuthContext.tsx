@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, LoginCredentials, SignupCredentials } from '../types';
 import { storage } from '../services/storage';
 import { api } from '../services/api';
+import {
+  registerForPushNotificationsAsync,
+  unregisterPushTokenAsync,
+} from '../services/pushNotification';
 
 interface AuthContextType {
   user: User | null;
@@ -40,6 +44,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               if (res.success && res.user) {
                 setUser(res.user);
                 storage.setUser(res.user);
+                // Sync push notifications on active session
+                registerForPushNotificationsAsync().catch(() => {});
               } else if (!res.success && res.message?.includes('token')) {
                 // Token invalid or expired
                 logout();
@@ -67,6 +73,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await storage.setUser(res.user);
       setToken(res.token);
       setUser(res.user);
+
+      // Register device push token for authenticated user
+      registerForPushNotificationsAsync().catch((err) => {
+        console.warn('Push registration error post-login:', err);
+      });
+
       return { success: true };
     }
 
@@ -84,6 +96,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await storage.setUser(res.user);
       setToken(res.token);
       setUser(res.user);
+
+      // Register device push token for new user
+      registerForPushNotificationsAsync().catch((err) => {
+        console.warn('Push registration error post-signup:', err);
+      });
+
       return { success: true };
     }
 
@@ -94,6 +112,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    await unregisterPushTokenAsync().catch(() => {});
     await storage.clearAll();
     setToken(null);
     setUser(null);

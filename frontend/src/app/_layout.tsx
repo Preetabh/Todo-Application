@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { AuthProvider } from '../context/AuthContext';
 import { UpdateProvider } from '../context/UpdateContext';
+import { setupPushNotificationListeners } from '../services/pushNotification';
 
 // Keep splash screen visible until initial bootstrap completes
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -42,7 +43,15 @@ export default function RootLayout() {
       SplashScreen.hideAsync().catch(() => {});
     }, 400);
 
-    return () => clearTimeout(timer);
+    // Setup push notification listeners (foreground alerts, deep links)
+    const cleanupPushListeners = setupPushNotificationListeners();
+
+    return () => {
+      clearTimeout(timer);
+      if (typeof cleanupPushListeners === 'function') {
+        cleanupPushListeners();
+      }
+    };
   }, []);
 
   return (

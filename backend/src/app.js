@@ -2,12 +2,17 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
+const fs = require('fs');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const todoRoutes = require('./routes/todo.routes');
 const passwordRoutes = require('./routes/password.routes');
 const versionRoutes = require('./routes/version.routes');
+const pushRoutes = require('./routes/push.routes');
+const adminAuthRoutes = require('./routes/adminAuth.routes');
+const adminPushRoutes = require('./routes/adminPush.routes');
 const { notFound, errorHandler } = require('./middleware/error.middleware');
 
 const app = express();
@@ -84,6 +89,18 @@ app.use('/api/users', userRoutes);
 app.use('/api/todos', todoRoutes);
 app.use('/api/passwords', passwordRoutes);
 app.use('/api/app-version', versionRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/push', adminPushRoutes);
+
+// Optional static serving for production Admin Dashboard build
+const adminDistPath = path.join(__dirname, '../../admin/dist');
+if (fs.existsSync(adminDistPath)) {
+  app.use('/admin', express.static(adminDistPath));
+  app.get(['/admin', '/admin/*'], (req, res) => {
+    res.sendFile(path.join(adminDistPath, 'index.html'));
+  });
+}
 
 // Catch-all 404 handler
 app.use(notFound);

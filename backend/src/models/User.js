@@ -24,8 +24,18 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters long'],
+      minlength: [4, 'Password must be at least 4 characters long'],
       select: false, // Prevents returning password hash in regular queries
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+      index: true,
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
     },
   },
   {

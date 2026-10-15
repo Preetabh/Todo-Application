@@ -130,4 +130,48 @@ export const storage = {
     await this.removeToken();
     await this.removeUser();
   },
+
+  async setPushToken(token: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('expo_push_token', token);
+        }
+      } else {
+        await SecureStore.setItemAsync('expo_push_token', token);
+      }
+    } catch (error) {
+      console.warn('Storage setPushToken error:', error);
+    }
+  },
+
+  async getPushToken(): Promise<string | null> {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          return window.localStorage.getItem('expo_push_token');
+        }
+        return null;
+      }
+      return await SecureStore.getItemAsync('expo_push_token');
+    } catch (error) {
+      console.warn('Storage getPushToken error:', error);
+      return null;
+    }
+  },
+
+  async clearPushToken(): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem('expo_push_token');
+        }
+      } else {
+        await SecureStore.deleteItemAsync('expo_push_token');
+      }
+    } catch (error) {
+      console.warn('Storage clearPushToken error:', error);
+    }
+  },
 };
+

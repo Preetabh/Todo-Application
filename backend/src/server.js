@@ -4,6 +4,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const app = require('./app');
 const { connectDB, disconnectDB } = require('./config/database');
+const { provisionInitialAdmin } = require('./services/adminProvision.service');
+const { startScheduler, stopScheduler } = require('./services/scheduler.service');
 const logger = require('./utils/logger');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
@@ -17,7 +19,13 @@ const startServer = async () => {
     // 1. Connect to MongoDB before accepting traffic
     await connectDB();
 
-    // 2. Start HTTP server
+    // 2. Provision initial administrator securely if not already present
+    await provisionInitialAdmin();
+
+    // 3. Start persistent background push campaign scheduler & receipt engine
+    startScheduler();
+
+    // 4. Start HTTP server
     server = app.listen(PORT, HOST, () => {
       logger.info(`Server is running at http://${HOST}:${PORT}`);
       logger.info(`Health check available at http://${HOST}:${PORT}/api/health`);
@@ -31,6 +39,7 @@ const startServer = async () => {
 // Graceful shutdown handling
 const shutdown = async (signal) => {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
+  stopScheduler();
   if (server) {
     server.close(async () => {
       logger.info('HTTP server closed.');
